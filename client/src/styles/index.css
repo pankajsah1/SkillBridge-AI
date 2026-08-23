@@ -1,0 +1,20 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    /* Inter is loaded in index.html; system-ui is the fallback per DESIGN.md §6. */
+    font-family: 'Inter', system-ui, sans-serif;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    @apply bg-slate-50 text-slate-900 antialiased;
+  }
+
+  /* DESIGN.md §40: focus must always be visible for keyboard navigation. */
+  :focus-visible {
+    @apply outline-none ring-2 ring-primary-600 ring-offset-2 ring-offset-white;
+  }
+}
