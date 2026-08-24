@@ -11,7 +11,8 @@
   "scripts": {
     "dev": "nodemon src/server.js",
     "start": "node src/server.js",
-    "db:check": "node scripts/checkDbConnection.js"
+    "db:check": "node scripts/checkDbConnection.js",
+    "seed": "node scripts/seed.js"
   },
   "keywords": [
     "skillbridge",

@@ -9,6 +9,8 @@
 import { Router } from 'express';
 import authRoutes from './auth.routes.js';
 import healthRoutes from './health.routes.js';
+import studentRoutes from './student.routes.js';
+import { careerRoleRoutes, skillRoutes } from './catalogue.routes.js';
 
 const router = Router();
 
@@ -16,8 +18,11 @@ const router = Router();
 const mounts = [
   ['/health', healthRoutes],
   ['/auth', authRoutes],
-  // Later steps add: /students, /industries, /skills, /opportunities,
-  //                  /applications, /assessments, /recommendations, /analytics
+  ['/students', studentRoutes],
+  ['/skills', skillRoutes],
+  ['/career-roles', careerRoleRoutes],
+  // Later steps add: /industries, /opportunities, /applications,
+  //                  /assessments, /recommendations, /analytics
 ];
 
 for (const [mountPath, subRouter] of mounts) {

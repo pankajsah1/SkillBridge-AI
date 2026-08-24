@@ -27,6 +27,7 @@ import Unauthorized from '../pages/Unauthorized.jsx';
 import NotFound from '../pages/NotFound.jsx';
 
 import StudentDashboard from '../pages/dashboards/StudentDashboard.jsx';
+import StudentProfile from '../pages/student/StudentProfile.jsx';
 import IndustryDashboard from '../pages/dashboards/IndustryDashboard.jsx';
 import AcademicianDashboard from '../pages/dashboards/AcademicianDashboard.jsx';
 import InstitutionDashboard from '../pages/dashboards/InstitutionDashboard.jsx';
@@ -69,6 +70,7 @@ export default function AppRouter() {
           from rendering the industry dashboard. */}
       <Route element={<RoleRoute allowedRoles={[ROLES.STUDENT]} />}>
         <Route path="/student" element={<StudentDashboard />} />
+        <Route path="/student/profile" element={<StudentProfile />} />
       </Route>
 
       <Route element={<RoleRoute allowedRoles={[ROLES.INDUSTRY]} />}>
