@@ -7,6 +7,7 @@
  */
 
 import { Router } from 'express';
+import authRoutes from './auth.routes.js';
 import healthRoutes from './health.routes.js';
 
 const router = Router();
@@ -14,7 +15,7 @@ const router = Router();
 /** [mountPath, router] — kept as data so the list stays easy to scan. */
 const mounts = [
   ['/health', healthRoutes],
-  // Step 2 adds: ['/auth', authRoutes]
+  ['/auth', authRoutes],
   // Later steps add: /students, /industries, /skills, /opportunities,
   //                  /applications, /assessments, /recommendations, /analytics
 ];

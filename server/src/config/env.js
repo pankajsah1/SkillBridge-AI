@@ -26,6 +26,21 @@ export const env = {
   apiPrefix: process.env.API_PREFIX || '/api/v1',
   clientUrl: process.env.CLIENT_URL || 'http://localhost:5173',
   mongoUri: process.env.MONGODB_URI || '',
+
+  /**
+   * Auth (Step 2).
+   *
+   * `jwtSecret` has no fallback on purpose. A default like 'secret' would let
+   * the app boot and issue forgeable tokens; utils/jwt.js refuses to sign
+   * without a real value instead.
+   *
+   * 7d is our choice, not the docs' — TRD.md section 42 declares
+   * JWT_EXPIRES_IN with an empty value and never specifies one. Long enough
+   * that a hackathon demo never logs out mid-presentation, short enough that a
+   * leaked token is not permanent.
+   */
+  jwtSecret: process.env.JWT_SECRET || '',
+  jwtExpiresIn: process.env.JWT_EXPIRES_IN || '7d',
 };
 
 export const isDevelopment = env.nodeEnv === 'development';
@@ -33,9 +48,12 @@ export const isProduction = env.nodeEnv === 'production';
 
 /**
  * Variables the app cannot sensibly run without.
- * Add to this list as later steps introduce new secrets (e.g. JWT_SECRET).
+ *
+ * JWT_SECRET joined this list in Step 2. Without it, authentication cannot
+ * issue or verify tokens at all, so a missing value is worth shouting about at
+ * startup rather than discovering on the first login attempt.
  */
-const REQUIRED_VARS = ['MONGODB_URI'];
+const REQUIRED_VARS = ['MONGODB_URI', 'JWT_SECRET'];
 
 /**
  * Warns about missing configuration at startup instead of failing with a

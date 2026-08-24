@@ -46,9 +46,16 @@ class AppError extends Error {
     return new AppError(message, 404);
   }
 
-  /** 409 — conflicts with current state, e.g. duplicate application. */
-  static conflict(message = 'Resource already exists') {
-    return new AppError(message, 409);
+  /**
+   * 409 — conflicts with current state, e.g. a duplicate email or application.
+   *
+   * Takes field errors because a conflict usually points at one specific input,
+   * and the form needs to show the message beside that input rather than only as
+   * a banner. 401 and 403 deliberately do not, since naming a field there would
+   * disclose which half of a credential was wrong.
+   */
+  static conflict(message = 'Resource already exists', errors = []) {
+    return new AppError(message, 409, errors);
   }
 
   /** 422 — syntactically valid but semantically unprocessable. */
