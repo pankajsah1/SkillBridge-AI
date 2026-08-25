@@ -391,6 +391,30 @@ export const validateObjectIdParam = (paramName) => (req, _res, next) => {
   return next();
 };
 
+/**
+ * Validates an optional `?name=` query parameter that should be an id.
+ *
+ * Absent is fine and means "use my primary career goal", so only a present-but-
+ * malformed value is an error. Without this a typo in the query string would
+ * reach Mongoose and come back as a cast error, which reads like a server fault
+ * rather than a bad request.
+ */
+export const validateOptionalObjectIdQuery = (queryName) => (req, _res, next) => {
+  const value = req.query[queryName];
+
+  if (value === undefined || value === '') return next();
+
+  if (!isObjectIdLike(value)) {
+    return next(
+      AppError.badRequest('Validation failed', [
+        { field: queryName, message: 'That is not a valid id.' },
+      ]),
+    );
+  }
+
+  return next();
+};
+
 /** Identical adapter to auth.validator.js, so the 400 shape cannot drift. */
 const toMiddleware = (validator) => (req, _res, next) => {
   const errors = validator(req.body);

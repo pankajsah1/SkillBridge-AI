@@ -124,6 +124,30 @@ export const removeMySkill = async (skillId) => {
   return response.data.data.profile;
 };
 
+/**
+ * GET /students/readiness
+ *
+ * Career readiness against one role, derived on every request from the profile
+ * as it is right now — nothing here is stored, so a skill added a second ago is
+ * already reflected.
+ *
+ * Resolves to `{ readiness, careerRole, reason }`. `readiness` is null when
+ * there is nothing to measure against, with `reason` saying which case it is
+ * ('no-profile' or 'no-career-goal') — both are normal first-run states rather
+ * than failures, so the caller renders an explanation, not an error.
+ *
+ * @param {string} [careerRoleId] omit to use the primary career goal
+ * @returns {Promise<{readiness: object|null, careerRole: object|null, reason: string|null}>}
+ */
+export const fetchMyReadiness = async (careerRoleId) => {
+  const response = await axiosInstance.get('/students/readiness', {
+    params: careerRoleId ? { careerRoleId } : undefined,
+  });
+
+  const { readiness = null, careerRole = null, reason = null } = response.data.data;
+  return { readiness, careerRole, reason };
+};
+
 export default {
   fetchMyProfile,
   createMyProfile,
@@ -133,4 +157,5 @@ export default {
   addMySkill,
   updateMySkillLevel,
   removeMySkill,
+  fetchMyReadiness,
 };

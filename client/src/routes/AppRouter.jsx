@@ -33,6 +33,7 @@ import OpportunityDetails from '../pages/student/OpportunityDetails.jsx';
 import StartAssessment from '../pages/student/StartAssessment.jsx';
 import TakeAssessment from '../pages/student/TakeAssessment.jsx';
 import AssessmentResult from '../pages/student/AssessmentResult.jsx';
+import CareerReadiness from '../pages/student/CareerReadiness.jsx';
 import IndustryDashboard from '../pages/dashboards/IndustryDashboard.jsx';
 import MyOpportunities from '../pages/industry/MyOpportunities.jsx';
 import OpportunityFormPage from '../pages/industry/OpportunityFormPage.jsx';
@@ -92,6 +93,12 @@ export default function AppRouter() {
         <Route path="/student/assessment" element={<StartAssessment />} />
         <Route path="/student/assessment/:assessmentId" element={<TakeAssessment />} />
         <Route path="/student/assessment/:assessmentId/result" element={<AssessmentResult />} />
+
+        {/* Readiness reads the profile and one career role, so it needs no id of
+            its own — the role to compare against is a query param on the API,
+            not a route segment, because switching it is a filter rather than
+            navigation to a different thing. */}
+        <Route path="/student/readiness" element={<CareerReadiness />} />
       </Route>
 
       <Route element={<RoleRoute allowedRoles={[ROLES.INDUSTRY]} />}>

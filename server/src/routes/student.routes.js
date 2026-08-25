@@ -29,6 +29,7 @@ import {
   createSkill,
   deleteSkill,
   getProfile,
+  getReadiness,
   getSkills,
   updateCareerGoals,
   updateProfile,
@@ -42,6 +43,7 @@ import {
   validateCareerGoals,
   validateCreateProfile,
   validateObjectIdParam,
+  validateOptionalObjectIdQuery,
   validateUpdateProfile,
   validateUpdateSkill,
 } from '../validators/studentProfile.validator.js';
@@ -73,5 +75,12 @@ router
   .route('/profile/skills/:skillId')
   .patch(validateObjectIdParam('skillId'), validateUpdateSkill, updateSkill)
   .delete(validateObjectIdParam('skillId'), deleteSkill);
+
+// ----------------------------------------------------------------- readiness
+// Career readiness and skill gaps against one role. Read-only and derived:
+// nothing is stored, so it always reflects the profile as it is right now.
+// It lives on this mount rather than a new one because it is the same owner
+// (`req.user.id`) behind the same student-only guard applied above.
+router.get('/readiness', validateOptionalObjectIdQuery('careerRoleId'), getReadiness);
 
 export default router;

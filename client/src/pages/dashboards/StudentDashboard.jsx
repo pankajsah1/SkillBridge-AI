@@ -21,6 +21,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 
 import { fetchLatestAssessment } from '../../api/assessment.api.js';
+import { fetchMyReadiness } from '../../api/studentProfile.api.js';
 import useStudentProfile from '../../hooks/useStudentProfile.js';
 import DashboardLayout from '../../components/layout/DashboardLayout.jsx';
 import DashboardPlaceholder from '../../components/dashboard/DashboardPlaceholder.jsx';
@@ -31,7 +32,6 @@ import ProgressBar from '../../components/ui/ProgressBar.jsx';
 import { Spinner } from '../../components/ui/Spinner.jsx';
 
 const UPCOMING = [
-  'Gap analysis against the career roles you want',
   'Matched internships and jobs',
   'Recommended learning programmes',
   'Your verified digital portfolio',
@@ -70,6 +70,16 @@ export default function StudentDashboard() {
   const [latest, setLatest] = useState(null);
   const [isLoadingLatest, setIsLoadingLatest] = useState(true);
 
+  /**
+   * Readiness against the primary career goal. Silent on failure for the same
+   * reason as the assessment card above, and null is a real answer here rather
+   * than only an error state — a student with no career goal has nothing to be
+   * measured against yet, and the card says so.
+   */
+  const [readiness, setReadiness] = useState(null);
+  const [readinessRole, setReadinessRole] = useState(null);
+  const [isLoadingReadiness, setIsLoadingReadiness] = useState(true);
+
   useEffect(() => {
     let isActive = true;
 
@@ -81,6 +91,27 @@ export default function StudentDashboard() {
         if (isActive) setLatest(null);
       } finally {
         if (isActive) setIsLoadingLatest(false);
+      }
+    })();
+
+    return () => {
+      isActive = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let isActive = true;
+
+    (async () => {
+      try {
+        const result = await fetchMyReadiness();
+        if (!isActive) return;
+        setReadiness(result.readiness);
+        setReadinessRole(result.careerRole);
+      } catch {
+        if (isActive) setReadiness(null);
+      } finally {
+        if (isActive) setIsLoadingReadiness(false);
       }
     })();
 
@@ -236,6 +267,80 @@ export default function StudentDashboard() {
             <p className="text-sm text-slate-600">
               You have not been assessed yet. The questions are picked from the skills your target
               role needs, so the result tells you where you actually stand rather than how you feel.
+            </p>
+          )}
+        </Card>
+
+        {/* Readiness follows assessment because it consumes what assessment
+            produces: the scores become levels, and this is the number those
+            levels add up to against the role the student is aiming at. */}
+        <Card
+          title="Career readiness"
+          description={
+            readiness
+              ? 'Your skills against what your target role actually asks for.'
+              : 'How close you are to the role you want, skill by skill.'
+          }
+          action={
+            <Link
+              to="/student/readiness"
+              className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary-600 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-primary-700"
+            >
+              {readiness ? 'See your gaps' : 'Check readiness'}
+            </Link>
+          }
+        >
+          {isLoadingReadiness ? (
+            <div className="flex items-center gap-2.5 py-1 text-sm text-slate-500">
+              <Spinner size="sm" />
+              Working out your readiness…
+            </div>
+          ) : readiness ? (
+            <div className="space-y-4">
+              <div>
+                <div className="flex items-baseline justify-between gap-2">
+                  <span className="text-sm text-slate-600">
+                    {readinessRole?.title ?? 'Your target role'}
+                  </span>
+                  <span className="text-sm font-semibold tabular-nums text-slate-900">
+                    {readiness.readinessScore}%
+                  </span>
+                </div>
+                <ProgressBar
+                  value={readiness.readinessScore}
+                  className="mt-2"
+                  barClassName={
+                    readiness.readinessScore >= 60 ? 'bg-success-500' : 'bg-warning-500'
+                  }
+                />
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge variant={readiness.skillGaps.length === 0 ? 'success' : 'outline'}>
+                  {readiness.skillGaps.length}{' '}
+                  {readiness.skillGaps.length === 1 ? 'skill gap' : 'skill gaps'}
+                </Badge>
+                <Badge variant={readiness.strongSkills.length > 0 ? 'primary' : 'outline'}>
+                  {readiness.strongSkills.length} at target
+                </Badge>
+              </div>
+
+              {/* The single most useful sentence this card can carry: not the
+                  score, but which skill to work on next. */}
+              {readiness.skillGaps.length > 0 ? (
+                <p className="text-sm text-slate-600">
+                  Biggest win right now:{' '}
+                  <span className="font-medium text-slate-900">
+                    {readiness.skillGaps[0].skillName}
+                  </span>{' '}
+                  — {readiness.skillGaps[0].gap} points below what the role needs.
+                </p>
+              ) : null}
+            </div>
+          ) : (
+            <p className="text-sm text-slate-600">
+              Set a career goal and readiness compares your skills against the levels that role
+              expects, so you can see what is missing rather than guessing.
             </p>
           )}
         </Card>

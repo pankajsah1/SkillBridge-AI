@@ -26,6 +26,7 @@ import {
   updateOwnProfile,
   updateSkillLevel,
 } from '../services/studentProfile.service.js';
+import { getReadinessForStudent } from '../services/readiness.service.js';
 
 /**
  * GET /api/v1/students/profile
@@ -136,6 +137,38 @@ export const deleteSkill = asyncHandler(async (req, res) => {
   });
 });
 
+/**
+ * GET /api/v1/students/readiness?careerRoleId=...
+ *
+ * Optional query param: measure against a specific role; absent means the
+ * student's primary (priority-1) career goal, from the same profile field the
+ * rest of the app reads. Two state answers rather than two errors: no profile,
+ * or a profile with no career goal, both come back as a clean { reason } the
+ * client can explain ("Add your career goals to see your readiness"). No
+ * arithmetic happens here — the service is pure math over the two documents.
+ */
+export const getReadiness = asyncHandler(async (req, res) => {
+  const { readiness, careerRole, reason } = await getReadinessForStudent({
+    studentId: req.user.id,
+    careerRoleId: req.query.careerRoleId,
+  });
+
+  if (!readiness) {
+    return sendSuccess(res, {
+      message:
+        reason === 'no-profile'
+          ? 'No profile has been created yet.'
+          : 'No career goal has been set yet.',
+      data: { readiness: null, careerRole: null, reason },
+    });
+  }
+
+  return sendSuccess(res, {
+    message: 'Readiness computed successfully.',
+    data: { readiness, careerRole },
+  });
+});
+
 export default {
   getProfile,
   createProfile,
@@ -145,4 +178,5 @@ export default {
   createSkill,
   updateSkill,
   deleteSkill,
+  getReadiness,
 };
