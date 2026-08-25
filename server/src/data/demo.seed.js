@@ -1,0 +1,930 @@
+/**
+ * Demo data — the cohort, the employers and the postings the demo runs on.
+ *
+ * DATA ONLY. No database access, no mongoose import, nothing async. `scripts/seedDemo.js`
+ * is the mechanism; this file is the content, kept separate for the same reason
+ * skills.seed.js is: the numbers below are the thing that gets argued about, and they
+ * should be readable without reading a loop.
+ *
+ * FIVE PERSONAS, AND DELIBERATELY NOT FIVE GOOD ONES. A demo where every student is
+ * employable proves nothing — the product's whole claim is that it can tell students
+ * apart and tell an institution where the gaps are. So the cohort spans:
+ *
+ *   A  Ready       assessed, mostly verified, high readiness. The success story.
+ *   B  Solid       assessed, strong in one area and thin in another. The realistic middle.
+ *   C  Developing  assessed, low scores, real gaps. The student the product is for.
+ *   D  Unassessed  a filled-in profile and no assessment. Readiness is UNKNOWN, not low —
+ *                  the distinction the analytics dashboard is built to preserve.
+ *   E  Empty       barely signed up. Proves the empty states are real.
+ *
+ * TWO STUDENTS BELONG TO A DIFFERENT COLLEGE, ON PURPOSE. `otherInstitution: true` puts
+ * them outside the demo institution's cohort, so the institution dashboard can be shown
+ * to exclude them. A scoping rule nobody can see working is a scoping rule nobody
+ * believes.
+ *
+ * THE SKILL GAP IS ENGINEERED, AND IT IS THE HONEST KIND. Students mostly hold the
+ * things students actually learn first — HTML, CSS, JavaScript, Git, Python. Employers
+ * mostly ask for the things they actually ask for — Docker, AWS, System Design, SQL at a
+ * senior level. Neither side was written to make the other look bad; the gap falls out
+ * of the two lists, which is exactly what the analytics page claims to detect.
+ *
+ * READINESS AND VERIFICATION ARE STATED HERE, NOT COMPUTED. A seeded `readinessScore`
+ * and a `verified: true` skill stand in for an assessment nobody sat. Match scores are
+ * the exception: seedDemo.js applies through the real application service, so every
+ * `matchScoreAtApplication` in the demo database was produced by the actual matching
+ * engine. Nothing in this file fakes a match score.
+ *
+ * SKILL TUPLES ARE `[slug, level, verified]`. `verified` true means the level is
+ * recorded as coming from an assessment; false means the student typed it. The slugs
+ * must exist in skills.seed.js — seedDemo.js proves that offline before it connects.
+ */
+
+/** The one shared password, printed at the end of a seed run. Demo accounts only. */
+export const DEMO_PASSWORD = process.env.DEMO_PASSWORD ?? 'Demo1234';
+
+/** Everything hangs off this name: students match their institution by typing it. */
+export const DEMO_INSTITUTION = {
+  name: 'Anna University Regional Campus',
+  email: 'institution@skillbridge.demo',
+};
+
+export const DEMO_ACADEMICIAN = {
+  name: 'Dr. Meera Raghavan',
+  email: 'academician@skillbridge.demo',
+};
+
+/** A second college, so the cohort filter has something to exclude. */
+export const OTHER_INSTITUTION_NAME = 'Coimbatore Institute of Technology';
+
+/** Employers. `key` is how postings below refer back to one. */
+export const DEMO_EMPLOYERS = [
+  { key: 'northwind', name: 'Northwind Analytics', email: 'hiring@northwind.demo' },
+  { key: 'lumen', name: 'Lumen Web Systems', email: 'talent@lumen.demo' },
+  { key: 'sentinel', name: 'Sentinel Cloud', email: 'careers@sentinel.demo' },
+];
+
+/**
+ * The cohort. 22 students, 20 of them at the demo institution.
+ *
+ * `readiness: null` is the point of personas D and E and must stay null — the
+ * dashboard reports those students as unassessed rather than folding a zero into
+ * every average.
+ */
+export const DEMO_STUDENTS = [
+  /* ---- Persona A — ready ------------------------------------------------- */
+  {
+    persona: 'A',
+    name: 'Aarav Menon',
+    email: 'aarav.menon@student.demo',
+    headline: 'Full stack developer, MERN, looking for a backend internship',
+    branch: 'Computer Science and Engineering',
+    degree: 'B.E.',
+    graduationYear: 2027,
+    currentYear: 3,
+    cgpa: 8.9,
+    location: 'Chennai',
+    readiness: 88,
+    targets: ['Full Stack Developer', 'Backend Developer'],
+    interests: ['Distributed systems', 'Developer tooling'],
+    skills: [
+      ['javascript', 88, true],
+      ['react', 84, true],
+      ['node-js', 86, true],
+      ['express-js', 82, true],
+      ['mongodb', 80, true],
+      ['rest-api-design', 78, true],
+      ['git', 85, true],
+      ['data-structures-algorithms', 81, true],
+      ['docker', 62, false],
+      ['sql', 70, true],
+      ['problem-solving', 84, true],
+      ['communication', 76, false],
+    ],
+  },
+  {
+    persona: 'A',
+    name: 'Ishita Bose',
+    email: 'ishita.bose@student.demo',
+    headline: 'Data science student, Python and ML, two published notebooks',
+    branch: 'Computer Science and Engineering',
+    degree: 'B.Tech',
+    graduationYear: 2026,
+    currentYear: 4,
+    cgpa: 9.1,
+    location: 'Chennai',
+    readiness: 84,
+    targets: ['Data Scientist / ML Engineer', 'Data Analyst'],
+    interests: ['Applied ML', 'Statistics'],
+    skills: [
+      ['python', 90, true],
+      ['pandas', 86, true],
+      ['statistics', 82, true],
+      ['machine-learning', 80, true],
+      ['data-analysis', 84, true],
+      ['data-visualization', 76, true],
+      ['sql', 74, true],
+      ['git', 70, false],
+      ['deep-learning', 58, false],
+      ['communication', 80, true],
+    ],
+  },
+
+  /* ---- Persona B — solid, uneven ----------------------------------------- */
+  {
+    persona: 'B',
+    name: 'Rohan Iyer',
+    email: 'rohan.iyer@student.demo',
+    headline: 'Frontend developer, React, learning testing',
+    branch: 'Computer Science and Engineering',
+    degree: 'B.E.',
+    graduationYear: 2027,
+    currentYear: 3,
+    cgpa: 8.1,
+    location: 'Chennai',
+    readiness: 72,
+    targets: ['Frontend Developer'],
+    interests: ['Design systems', 'Accessibility'],
+    skills: [
+      ['html', 88, true],
+      ['css', 84, true],
+      ['javascript', 76, true],
+      ['react', 74, true],
+      ['git', 68, false],
+      ['teamwork', 78, false],
+      /* The uneven half: no backend, no infrastructure. */
+      ['node-js', 42, false],
+    ],
+  },
+  {
+    persona: 'B',
+    name: 'Sneha Kulkarni',
+    email: 'sneha.kulkarni@student.demo',
+    headline: 'Backend developer, Java and SQL',
+    branch: 'Information Technology',
+    degree: 'B.Tech',
+    graduationYear: 2026,
+    currentYear: 4,
+    cgpa: 8.4,
+    location: 'Coimbatore',
+    readiness: 74,
+    targets: ['Backend Developer', 'Software Engineer'],
+    interests: ['APIs', 'Databases'],
+    skills: [
+      ['java', 82, true],
+      ['sql', 80, true],
+      ['data-modeling', 72, true],
+      ['rest-api-design', 70, true],
+      ['data-structures-algorithms', 68, true],
+      ['git', 66, false],
+      ['linux', 54, false],
+      ['problem-solving', 74, true],
+    ],
+  },
+  {
+    persona: 'B',
+    name: 'Vikram Naidu',
+    email: 'vikram.naidu@student.demo',
+    headline: 'Interested in cloud and automation',
+    branch: 'Electronics and Communication',
+    degree: 'B.E.',
+    graduationYear: 2027,
+    currentYear: 3,
+    cgpa: 7.6,
+    location: 'Chennai',
+    readiness: 66,
+    targets: ['DevOps Engineer'],
+    interests: ['Cloud', 'Automation'],
+    skills: [
+      ['linux', 78, true],
+      ['git', 72, true],
+      ['python', 62, true],
+      ['docker', 58, false],
+      ['ci-cd', 48, false],
+      ['teamwork', 70, false],
+    ],
+  },
+  {
+    persona: 'B',
+    name: 'Ananya Pillai',
+    email: 'ananya.pillai@student.demo',
+    headline: 'Analytics and reporting',
+    branch: 'Information Technology',
+    degree: 'B.Tech',
+    graduationYear: 2027,
+    currentYear: 3,
+    cgpa: 8.0,
+    location: 'Madurai',
+    readiness: 69,
+    targets: ['Data Analyst'],
+    interests: ['Dashboards', 'Business analytics'],
+    skills: [
+      ['data-analysis', 76, true],
+      ['sql', 72, true],
+      ['data-visualization', 70, true],
+      ['statistics', 62, true],
+      ['python', 58, false],
+      ['communication', 82, true],
+    ],
+  },
+  {
+    persona: 'B',
+    name: 'Kabir Shah',
+    email: 'kabir.shah@student.demo',
+    headline: 'Security enthusiast, CTF regular',
+    branch: 'Computer Science and Engineering',
+    degree: 'B.E.',
+    graduationYear: 2026,
+    currentYear: 4,
+    cgpa: 7.9,
+    location: 'Chennai',
+    readiness: 71,
+    targets: ['Cybersecurity Analyst'],
+    interests: ['Network security', 'Reverse engineering'],
+    skills: [
+      ['network-security', 78, true],
+      ['linux', 76, true],
+      ['application-security', 68, true],
+      ['python', 66, true],
+      ['git', 60, false],
+      ['problem-solving', 72, true],
+    ],
+  },
+
+  /* ---- Persona C — developing -------------------------------------------- */
+  {
+    persona: 'C',
+    name: 'Divya Ramesh',
+    email: 'divya.ramesh@student.demo',
+    headline: 'Second year, learning web development',
+    branch: 'Computer Science and Engineering',
+    degree: 'B.E.',
+    graduationYear: 2028,
+    currentYear: 2,
+    cgpa: 7.2,
+    location: 'Chennai',
+    readiness: 52,
+    targets: ['Frontend Developer'],
+    interests: ['Web development'],
+    skills: [
+      ['html', 68, true],
+      ['css', 60, true],
+      ['javascript', 48, true],
+      ['git', 40, false],
+      ['teamwork', 62, false],
+    ],
+  },
+  {
+    persona: 'C',
+    name: 'Arjun Deshpande',
+    email: 'arjun.deshpande@student.demo',
+    headline: 'Learning Python, first year of DSA',
+    branch: 'Computer Science and Engineering',
+    degree: 'B.E.',
+    graduationYear: 2028,
+    currentYear: 2,
+    cgpa: 6.9,
+    location: 'Trichy',
+    readiness: 46,
+    targets: ['Software Engineer'],
+    interests: ['Competitive programming'],
+    skills: [
+      ['python', 58, true],
+      ['data-structures-algorithms', 44, true],
+      ['git', 38, false],
+      ['problem-solving', 56, true],
+    ],
+  },
+  {
+    persona: 'C',
+    name: 'Fatima Sheikh',
+    email: 'fatima.sheikh@student.demo',
+    headline: 'Exploring data analysis',
+    branch: 'Information Technology',
+    degree: 'B.Tech',
+    graduationYear: 2028,
+    currentYear: 2,
+    cgpa: 7.4,
+    location: 'Chennai',
+    readiness: 49,
+    targets: ['Data Analyst'],
+    interests: ['Spreadsheets to code'],
+    skills: [
+      ['sql', 54, true],
+      ['data-analysis', 46, true],
+      ['python', 42, true],
+      ['communication', 68, false],
+    ],
+  },
+  {
+    persona: 'C',
+    name: 'Nikhil Verma',
+    email: 'nikhil.verma@student.demo',
+    headline: 'Mechanical student moving into software',
+    branch: 'Mechanical Engineering',
+    degree: 'B.E.',
+    graduationYear: 2027,
+    currentYear: 3,
+    cgpa: 6.6,
+    location: 'Salem',
+    /* The lowest assessed score in the cohort, and deliberately in the Beginner
+       band. A readiness distribution whose bottom band is empty suggests the
+       college has no one who needs help, which is never true. */
+    readiness: 34,
+    targets: ['Software Engineer'],
+    interests: ['Career change'],
+    skills: [
+      ['python', 46, true],
+      ['html', 44, false],
+      ['problem-solving', 52, true],
+      ['time-management', 60, false],
+    ],
+  },
+  {
+    persona: 'C',
+    name: 'Meghna Das',
+    email: 'meghna.das@student.demo',
+    headline: 'Third year, backend curious',
+    branch: 'Computer Science and Engineering',
+    degree: 'B.E.',
+    graduationYear: 2027,
+    currentYear: 3,
+    cgpa: 7.1,
+    location: 'Chennai',
+    readiness: 57,
+    targets: ['Backend Developer'],
+    interests: ['APIs'],
+    skills: [
+      ['javascript', 58, true],
+      ['node-js', 52, true],
+      ['mongodb', 48, true],
+      ['git', 50, false],
+      ['rest-api-design', 44, false],
+      ['teamwork', 66, false],
+    ],
+  },
+  {
+    persona: 'C',
+    name: 'Saurabh Jain',
+    email: 'saurabh.jain@student.demo',
+    headline: 'Electronics student learning embedded C and Linux',
+    branch: 'Electronics and Communication',
+    degree: 'B.E.',
+    graduationYear: 2027,
+    currentYear: 3,
+    cgpa: 7.0,
+    location: 'Coimbatore',
+    readiness: 44,
+    targets: ['DevOps Engineer'],
+    interests: ['Embedded systems'],
+    skills: [
+      ['linux', 56, true],
+      ['git', 42, true],
+      ['python', 38, false],
+      ['teamwork', 64, false],
+    ],
+  },
+
+  /* ---- Persona D — profile, but never assessed --------------------------- */
+  {
+    persona: 'D',
+    name: 'Priya Ranganathan',
+    email: 'priya.ranganathan@student.demo',
+    headline: 'Final year, MERN projects, yet to take an assessment',
+    branch: 'Computer Science and Engineering',
+    degree: 'B.E.',
+    graduationYear: 2026,
+    currentYear: 4,
+    cgpa: 8.6,
+    location: 'Chennai',
+    readiness: null,
+    targets: ['Full Stack Developer'],
+    interests: ['Product engineering'],
+    /* Every level self-reported. Nothing verified — that is the persona. */
+    skills: [
+      ['javascript', 80, false],
+      ['react', 78, false],
+      ['node-js', 74, false],
+      ['mongodb', 70, false],
+      ['git', 72, false],
+      ['communication', 78, false],
+    ],
+  },
+  {
+    persona: 'D',
+    name: 'Harsh Tiwari',
+    email: 'harsh.tiwari@student.demo',
+    headline: 'Java and SQL, no assessment yet',
+    branch: 'Information Technology',
+    degree: 'B.Tech',
+    graduationYear: 2027,
+    currentYear: 3,
+    cgpa: 7.8,
+    location: 'Chennai',
+    readiness: null,
+    targets: ['Backend Developer'],
+    interests: ['Databases'],
+    skills: [
+      ['java', 72, false],
+      ['sql', 68, false],
+      ['git', 60, false],
+      ['problem-solving', 70, false],
+    ],
+  },
+  {
+    persona: 'D',
+    name: 'Lakshmi Narayan',
+    email: 'lakshmi.narayan@student.demo',
+    headline: 'Interested in cloud, has not been assessed',
+    branch: 'Computer Science and Engineering',
+    degree: 'B.E.',
+    graduationYear: 2028,
+    currentYear: 2,
+    cgpa: 7.5,
+    location: 'Chennai',
+    readiness: null,
+    targets: ['DevOps Engineer'],
+    interests: ['Cloud'],
+    skills: [
+      ['linux', 58, false],
+      ['git', 54, false],
+      ['docker', 40, false],
+    ],
+  },
+  {
+    persona: 'D',
+    name: 'Tanvi Kapoor',
+    email: 'tanvi.kapoor@student.demo',
+    headline: 'Design to frontend, no assessment yet',
+    branch: 'Information Technology',
+    degree: 'B.Tech',
+    graduationYear: 2027,
+    currentYear: 3,
+    cgpa: 8.2,
+    location: 'Madurai',
+    readiness: null,
+    targets: ['Frontend Developer'],
+    interests: ['UI engineering'],
+    skills: [
+      ['html', 76, false],
+      ['css', 78, false],
+      ['javascript', 62, false],
+      ['communication', 80, false],
+    ],
+  },
+  {
+    persona: 'D',
+    name: 'Imran Qureshi',
+    email: 'imran.qureshi@student.demo',
+    /* No branch at all: exercises the dashboard's "Not specified" grouping. */
+    headline: 'First year, still deciding',
+    branch: '',
+    degree: 'B.E.',
+    graduationYear: 2029,
+    currentYear: 1,
+    cgpa: null,
+    location: 'Chennai',
+    readiness: null,
+    targets: [],
+    interests: ['Everything, for now'],
+    skills: [['html', 40, false]],
+  },
+
+  /* ---- Persona E — barely started ---------------------------------------- */
+  {
+    persona: 'E',
+    name: 'Rahul Bhatt',
+    email: 'rahul.bhatt@student.demo',
+    headline: '',
+    branch: '',
+    degree: '',
+    graduationYear: null,
+    currentYear: null,
+    cgpa: null,
+    location: '',
+    readiness: null,
+    targets: [],
+    interests: [],
+    skills: [],
+  },
+  {
+    persona: 'E',
+    name: 'Sanya Malhotra',
+    email: 'sanya.malhotra@student.demo',
+    headline: 'Just signed up',
+    branch: '',
+    degree: '',
+    graduationYear: null,
+    currentYear: null,
+    cgpa: null,
+    location: '',
+    readiness: null,
+    targets: [],
+    interests: [],
+    skills: [],
+  },
+
+  /* ---- Another college — must NOT appear in the cohort -------------------- */
+  {
+    persona: 'B',
+    otherInstitution: true,
+    name: 'Gautam Reddy',
+    email: 'gautam.reddy@student.demo',
+    headline: 'Full stack developer at another college',
+    branch: 'Computer Science and Engineering',
+    degree: 'B.E.',
+    graduationYear: 2026,
+    currentYear: 4,
+    cgpa: 8.5,
+    location: 'Coimbatore',
+    readiness: 79,
+    targets: ['Full Stack Developer'],
+    interests: ['Web'],
+    skills: [
+      ['javascript', 82, true],
+      ['react', 78, true],
+      ['node-js', 76, true],
+      ['docker', 64, true],
+      ['aws', 58, false],
+      ['git', 74, true],
+    ],
+  },
+  {
+    persona: 'C',
+    otherInstitution: true,
+    name: 'Nisha Varma',
+    email: 'nisha.varma@student.demo',
+    headline: 'Learning data analysis at another college',
+    branch: 'Information Technology',
+    degree: 'B.Tech',
+    graduationYear: 2028,
+    currentYear: 2,
+    cgpa: 7.3,
+    location: 'Coimbatore',
+    readiness: 51,
+    targets: ['Data Analyst'],
+    interests: ['Analytics'],
+    skills: [
+      ['sql', 56, true],
+      ['data-analysis', 50, true],
+      ['python', 46, false],
+    ],
+  },
+];
+
+/**
+ * The postings. 12 of them, across the three employers and every lifecycle state.
+ *
+ * `deadlineInDays` may be negative: that is the "published but the clock ran out"
+ * case the industry dashboard counts separately from active. `finalStatus` is applied
+ * AFTER applications are seeded, because a closed posting in the real product got its
+ * applications while it was still open, and createApplication rightly refuses to
+ * accept one otherwise.
+ *
+ * Requirement levels are what employers actually write down, not what students have.
+ * That is where the gap comes from.
+ */
+export const DEMO_OPPORTUNITIES = [
+  {
+    employer: 'lumen',
+    title: 'Frontend Developer Intern',
+    type: 'internship',
+    workMode: 'hybrid',
+    location: 'Chennai',
+    deadlineInDays: 21,
+    durationMonths: 6,
+    openings: 3,
+    description:
+      'Work with our product team on the customer dashboard. You will own small features end to end, from the component to the API call, with a mentor reviewing every pull request. We care more about how you reason through a layout problem than how many frameworks you have used.',
+    required: [
+      ['html', 60, 15],
+      ['css', 65, 20],
+      ['javascript', 70, 30],
+      ['react', 65, 25],
+      ['git', 50, 10],
+    ],
+    preferred: [['typescript', 50, 60], ['communication', 60, 40]],
+    eligibility: { branches: ['Computer Science and Engineering', 'Information Technology'], minGraduationYear: 2026 },
+  },
+  {
+    employer: 'lumen',
+    title: 'Full Stack Engineer (Entry Level)',
+    type: 'job',
+    workMode: 'onsite',
+    location: 'Chennai',
+    deadlineInDays: 30,
+    openings: 2,
+    description:
+      'A first engineering role on a small team that ships weekly. You will write React on the front and Node on the back, and you will be expected to read a database query plan by the end of your first quarter. We hire for curiosity and follow-through.',
+    required: [
+      ['javascript', 75, 20],
+      ['react', 70, 15],
+      ['node-js', 70, 20],
+      ['mongodb', 65, 15],
+      ['rest-api-design', 65, 15],
+      ['docker', 55, 15],
+    ],
+    preferred: [['aws', 50, 50], ['system-design', 55, 50]],
+    eligibility: { minGraduationYear: 2025, maxGraduationYear: 2027 },
+  },
+  {
+    employer: 'northwind',
+    title: 'Data Analyst Intern',
+    type: 'internship',
+    workMode: 'remote',
+    location: 'Remote',
+    deadlineInDays: 18,
+    durationMonths: 4,
+    openings: 4,
+    description:
+      'Turn messy operational data into weekly reporting the business actually reads. You will spend real time in SQL, some in Python, and a surprising amount deciding which chart tells the truth. No prior industry experience expected.',
+    required: [
+      ['sql', 65, 30],
+      ['data-analysis', 60, 25],
+      ['data-visualization', 55, 20],
+      ['statistics', 55, 15],
+      ['communication', 60, 10],
+    ],
+    preferred: [['python', 55, 60], ['pandas', 50, 40]],
+    eligibility: {},
+  },
+  {
+    employer: 'northwind',
+    title: 'Machine Learning Intern',
+    type: 'internship',
+    workMode: 'hybrid',
+    location: 'Bengaluru',
+    deadlineInDays: 25,
+    durationMonths: 6,
+    openings: 2,
+    description:
+      'Support the forecasting team: feature engineering, evaluation, and honest error analysis. You will not be handed a clean dataset. A completed course in statistics matters more here than a list of model names.',
+    required: [
+      ['python', 75, 25],
+      ['machine-learning', 70, 25],
+      ['statistics', 70, 20],
+      ['pandas', 65, 15],
+      ['sql', 60, 15],
+    ],
+    preferred: [['deep-learning', 60, 100]],
+    eligibility: { minGraduationYear: 2026 },
+  },
+  {
+    employer: 'sentinel',
+    title: 'Cloud Infrastructure Intern',
+    type: 'internship',
+    workMode: 'remote',
+    location: 'Remote',
+    deadlineInDays: 20,
+    durationMonths: 6,
+    openings: 2,
+    description:
+      'Help maintain the deployment pipeline behind our platform. Expect Linux, containers, and a rota of small automation jobs that remove manual steps for the whole team. You will break staging at least once; that is fine.',
+    required: [
+      ['linux', 65, 25],
+      ['docker', 65, 30],
+      ['ci-cd', 60, 20],
+      ['git', 60, 15],
+      ['aws', 55, 10],
+    ],
+    preferred: [['kubernetes', 50, 100]],
+    eligibility: {},
+  },
+  {
+    employer: 'sentinel',
+    title: 'Backend Engineer (Entry Level)',
+    type: 'job',
+    workMode: 'hybrid',
+    location: 'Hyderabad',
+    deadlineInDays: 35,
+    openings: 2,
+    description:
+      'Own services that other teams depend on. The work is API design, data modelling and the unglamorous discipline of making failures visible. You will be paired with a senior engineer for your first three months.',
+    required: [
+      ['rest-api-design', 70, 20],
+      ['sql', 70, 20],
+      ['data-modeling', 65, 15],
+      ['system-design', 60, 20],
+      ['docker', 60, 15],
+      ['authentication-authorization', 60, 10],
+    ],
+    preferred: [['java', 65, 50], ['node-js', 65, 50]],
+    eligibility: { minGraduationYear: 2025, maxGraduationYear: 2027 },
+  },
+  {
+    employer: 'sentinel',
+    title: 'Security Analyst Apprenticeship',
+    type: 'apprenticeship',
+    workMode: 'onsite',
+    location: 'Chennai',
+    deadlineInDays: 28,
+    durationMonths: 12,
+    openings: 1,
+    description:
+      'A twelve month apprenticeship in our security operations team. You will triage alerts, write up what you found, and gradually take on your own investigations. We will teach the tooling; bring the stubbornness.',
+    required: [
+      ['network-security', 60, 30],
+      ['linux', 60, 25],
+      ['application-security', 55, 25],
+      ['python', 50, 20],
+    ],
+    preferred: [['problem-solving', 65, 100]],
+    eligibility: {},
+  },
+  {
+    employer: 'northwind',
+    title: 'Analytics Dashboard Live Project',
+    type: 'project',
+    workMode: 'remote',
+    location: 'Remote',
+    deadlineInDays: 14,
+    durationMonths: 2,
+    openings: 5,
+    description:
+      'A two month paid project: build an internal dashboard against our reporting database. Good first industry work for a second or third year student, and a real reference at the end of it.',
+    required: [
+      ['javascript', 55, 25],
+      ['react', 55, 25],
+      ['sql', 50, 25],
+      ['data-visualization', 50, 25],
+    ],
+    preferred: [],
+    eligibility: {},
+  },
+  {
+    employer: 'lumen',
+    title: 'Platform Engineer',
+    type: 'job',
+    workMode: 'onsite',
+    location: 'Chennai',
+    deadlineInDays: 40,
+    openings: 1,
+    /* Deliberately out of reach for this cohort: the gap table needs a top row. */
+    description:
+      'A senior-leaning platform role for someone who has already run something in production. You will define how our services are built, deployed and observed. Rare for a new graduate, and we do interview new graduates who can show the work.',
+    required: [
+      ['kubernetes', 70, 20],
+      ['aws', 75, 25],
+      ['docker', 75, 20],
+      ['system-design', 75, 20],
+      ['ci-cd', 70, 15],
+    ],
+    preferred: [['linux', 70, 100]],
+    eligibility: {},
+  },
+  {
+    employer: 'lumen',
+    title: 'TypeScript Migration Intern',
+    type: 'internship',
+    workMode: 'remote',
+    location: 'Remote',
+    deadlineInDays: 16,
+    durationMonths: 3,
+    openings: 2,
+    description:
+      'We are moving a large React codebase to TypeScript one module at a time. Repetitive in the best way: you will learn the type system properly and see every corner of a real application.',
+    required: [
+      ['typescript', 65, 40],
+      ['javascript', 70, 30],
+      ['react', 60, 30],
+    ],
+    preferred: [],
+    eligibility: {},
+  },
+  /* ---- Not open to students, for the industry dashboard's other counts ---- */
+  {
+    employer: 'northwind',
+    title: 'Data Engineering Intern (draft)',
+    type: 'internship',
+    workMode: 'hybrid',
+    location: 'Bengaluru',
+    deadlineInDays: 45,
+    durationMonths: 6,
+    openings: 2,
+    description:
+      'Draft posting, not yet published. Kept in the demo database so the employer dashboard can show what a draft looks like: visible to us, invisible to every student.',
+    required: [
+      ['python', 65, 40],
+      ['sql', 70, 40],
+      ['data-modeling', 60, 20],
+    ],
+    preferred: [],
+    eligibility: {},
+    finalStatus: 'draft',
+  },
+  {
+    employer: 'sentinel',
+    title: 'Winter Internship Programme',
+    type: 'internship',
+    workMode: 'onsite',
+    location: 'Chennai',
+    /* Already past. Published, expired, still holds its applications. */
+    deadlineInDays: -6,
+    durationMonths: 2,
+    openings: 6,
+    description:
+      'Our winter programme, now closed to new applications. It stays in the demo so a recruiter can be shown a finished pipeline: candidates reviewed, one selected, the rest told honestly.',
+    required: [
+      ['git', 55, 30],
+      ['linux', 55, 30],
+      ['python', 55, 40],
+    ],
+    preferred: [],
+    eligibility: {},
+    finalStatus: 'closed',
+  },
+];
+
+/**
+ * Who applied to what, and how far it got.
+ *
+ * `status` is the END state. seedDemo.js walks the real transition map to reach it,
+ * through the real service, so every application in the demo has a status history that
+ * the product itself could have produced. There is no path to `interview` that skips
+ * `shortlisted`, here or anywhere else.
+ *
+ * The spread is the point: one selection, one rejection after interview, several
+ * mid-pipeline, and a handful nobody has looked at yet — so the recruiter dashboard has
+ * a real "6 waiting on you" number and the institution's pipeline has every stage.
+ */
+export const DEMO_APPLICATIONS = [
+  /* Aarav — the strong candidate, all the way through. */
+  { student: 'aarav.menon@student.demo', posting: 'Full Stack Engineer (Entry Level)', status: 'selected',
+    note: 'Strongest submission in the round. Offer extended.',
+    coverNote: 'I have shipped three MERN projects and would like to work on the API side of your dashboard.' },
+  { student: 'aarav.menon@student.demo', posting: 'Backend Engineer (Entry Level)', status: 'interview',
+    coverNote: 'Backend is where I want to specialise. Happy to talk through my API design decisions.' },
+  { student: 'aarav.menon@student.demo', posting: 'Cloud Infrastructure Intern', status: 'applied' },
+
+  /* Ishita — data track. */
+  { student: 'ishita.bose@student.demo', posting: 'Machine Learning Intern', status: 'shortlisted',
+    note: 'Notebooks are genuinely good. Moving forward.',
+    coverNote: 'I have two published notebooks on forecasting and would like to work on evaluation.' },
+  { student: 'ishita.bose@student.demo', posting: 'Data Analyst Intern', status: 'under_review' },
+
+  /* Rohan — frontend, uneven. */
+  { student: 'rohan.iyer@student.demo', posting: 'Frontend Developer Intern', status: 'shortlisted',
+    note: 'Good CSS fundamentals.', coverNote: 'I care a lot about accessible components.' },
+  { student: 'rohan.iyer@student.demo', posting: 'TypeScript Migration Intern', status: 'applied' },
+  { student: 'rohan.iyer@student.demo', posting: 'Full Stack Engineer (Entry Level)', status: 'rejected',
+    note: 'Not enough backend experience for this role yet. Encouraged to reapply next cycle.' },
+
+  /* Sneha — backend. */
+  { student: 'sneha.kulkarni@student.demo', posting: 'Backend Engineer (Entry Level)', status: 'interview',
+    coverNote: 'I have built and documented a REST API for my college fest.' },
+  { student: 'sneha.kulkarni@student.demo', posting: 'Winter Internship Programme', status: 'selected',
+    note: 'Selected for the winter cohort.' },
+
+  /* Vikram — cloud, not there yet. */
+  { student: 'vikram.naidu@student.demo', posting: 'Cloud Infrastructure Intern', status: 'under_review' },
+  { student: 'vikram.naidu@student.demo', posting: 'Platform Engineer', status: 'rejected',
+    note: 'This role needs production experience. Please look at the internship instead.' },
+
+  /* Ananya — analytics. */
+  { student: 'ananya.pillai@student.demo', posting: 'Data Analyst Intern', status: 'shortlisted',
+    note: 'Clear written communication.' },
+  { student: 'ananya.pillai@student.demo', posting: 'Analytics Dashboard Live Project', status: 'applied' },
+
+  /* Kabir — security. */
+  { student: 'kabir.shah@student.demo', posting: 'Security Analyst Apprenticeship', status: 'interview',
+    coverNote: 'I play CTFs most weekends and write up what I learn.' },
+
+  /* Persona C — applying honestly, mostly early in the pipeline. */
+  { student: 'divya.ramesh@student.demo', posting: 'Frontend Developer Intern', status: 'applied' },
+  { student: 'divya.ramesh@student.demo', posting: 'Analytics Dashboard Live Project', status: 'under_review' },
+  { student: 'arjun.deshpande@student.demo', posting: 'Analytics Dashboard Live Project', status: 'applied' },
+  { student: 'fatima.sheikh@student.demo', posting: 'Data Analyst Intern', status: 'applied' },
+  { student: 'fatima.sheikh@student.demo', posting: 'Analytics Dashboard Live Project', status: 'rejected',
+    note: 'Close, but we filled the last slot. Please apply again.' },
+  { student: 'nikhil.verma@student.demo', posting: 'Analytics Dashboard Live Project', status: 'applied' },
+  { student: 'meghna.das@student.demo', posting: 'Frontend Developer Intern', status: 'under_review' },
+  { student: 'meghna.das@student.demo', posting: 'Winter Internship Programme', status: 'rejected',
+    note: 'Not selected this round.' },
+  { student: 'saurabh.jain@student.demo', posting: 'Cloud Infrastructure Intern', status: 'applied' },
+  { student: 'saurabh.jain@student.demo', posting: 'Winter Internship Programme', status: 'under_review' },
+
+  /* Persona D — a good profile with no assessment behind it. The recruiter sees a
+     high self-reported profile and zero verified skills, which is the comparison
+     the candidate view exists to make. */
+  { student: 'priya.ranganathan@student.demo', posting: 'Full Stack Engineer (Entry Level)', status: 'shortlisted',
+    note: 'Strong on paper. Asked to complete a skill assessment before we interview.' },
+  { student: 'priya.ranganathan@student.demo', posting: 'TypeScript Migration Intern', status: 'applied' },
+  { student: 'harsh.tiwari@student.demo', posting: 'Backend Engineer (Entry Level)', status: 'applied' },
+  { student: 'tanvi.kapoor@student.demo', posting: 'Frontend Developer Intern', status: 'applied' },
+
+  /* The other college applies to the same market — its students appear to employers
+     and must not appear in the demo institution's analytics. */
+  { student: 'gautam.reddy@student.demo', posting: 'Full Stack Engineer (Entry Level)', status: 'interview',
+    coverNote: 'I have deployed two side projects to AWS.' },
+  { student: 'nisha.varma@student.demo', posting: 'Data Analyst Intern', status: 'applied' },
+];
+
+export default {
+  DEMO_PASSWORD,
+  DEMO_INSTITUTION,
+  DEMO_ACADEMICIAN,
+  OTHER_INSTITUTION_NAME,
+  DEMO_EMPLOYERS,
+  DEMO_STUDENTS,
+  DEMO_OPPORTUNITIES,
+  DEMO_APPLICATIONS,
+};
