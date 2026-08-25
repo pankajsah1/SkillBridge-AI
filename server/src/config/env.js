@@ -41,10 +41,38 @@ export const env = {
    */
   jwtSecret: process.env.JWT_SECRET || '',
   jwtExpiresIn: process.env.JWT_EXPIRES_IN || '7d',
+
+  /**
+   * Optional generative-AI layer (TRD section "Optional Generative AI Layer").
+   *
+   * Deliberately NOT in REQUIRED_VARS. The assessment engine has a deterministic
+   * question bank and every AI path falls back to it, so a missing key must be a
+   * non-event: the app boots, the demo runs, nothing 500s. Anything that would
+   * make the app refuse to start without a key belongs somewhere else.
+   */
+  ai: {
+    apiKey: process.env.AI_API_KEY || '',
+    apiUrl: process.env.AI_API_URL || '',
+    model: process.env.AI_MODEL || '',
+    /** A slow provider must not hold a student on a spinner. */
+    timeoutMs: toNumber(process.env.AI_TIMEOUT_MS, 12000),
+  },
 };
 
 export const isDevelopment = env.nodeEnv === 'development';
 export const isProduction = env.nodeEnv === 'production';
+
+/**
+ * True only when all three AI variables are present. Read at call time, not at
+ * import time, so a `.env` edit takes effect on a server restart rather than
+ * being baked into a module constant that is hard to reason about in a demo.
+ *
+ * A partially-configured provider counts as unconfigured. A URL with no key
+ * would produce a 401 from the provider on every attempt — silently using the
+ * question bank is the better failure.
+ */
+export const isAiConfigured = () =>
+  Boolean(env.ai.apiKey) && Boolean(env.ai.apiUrl) && Boolean(env.ai.model);
 
 /**
  * Variables the app cannot sensibly run without.

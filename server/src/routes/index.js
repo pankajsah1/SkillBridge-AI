@@ -7,6 +7,7 @@
  */
 
 import { Router } from 'express';
+import assessmentRoutes from './assessment.routes.js';
 import authRoutes from './auth.routes.js';
 import healthRoutes from './health.routes.js';
 import studentRoutes from './student.routes.js';
@@ -24,8 +25,8 @@ const mounts = [
   ['/career-roles', careerRoleRoutes],
   ['/opportunities', opportunityRoutes],
   ['/industry', industryRoutes],
-  // Later steps add: /applications, /assessments,
-  //                  /recommendations, /analytics
+  ['/assessments', assessmentRoutes],
+  // Later steps add: /applications, /recommendations, /analytics
 ];
 
 for (const [mountPath, subRouter] of mounts) {
