@@ -7,6 +7,7 @@
  */
 
 import { Router } from 'express';
+import analyticsRoutes from './analytics.routes.js';
 import applicationRoutes from './application.routes.js';
 import assessmentRoutes from './assessment.routes.js';
 import authRoutes from './auth.routes.js';
@@ -28,7 +29,7 @@ const mounts = [
   ['/industry', industryRoutes],
   ['/assessments', assessmentRoutes],
   ['/applications', applicationRoutes],
-  // Later steps add: /recommendations, /analytics
+  ['/analytics', analyticsRoutes],
 ];
 
 for (const [mountPath, subRouter] of mounts) {
