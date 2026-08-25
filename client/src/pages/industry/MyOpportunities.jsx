@@ -127,6 +127,19 @@ export default function MyOpportunities() {
 
   const actionsFor = (opportunity) => (
     <>
+      {/* First, and a link rather than a button, because reading who applied is
+          what an employer comes back to this page for. Hidden on a draft: nobody
+          can see a draft, so nobody can have applied to one, and offering the
+          link would promise a list that is empty by construction. */}
+      {opportunity.availability === AVAILABILITY.DRAFT ? null : (
+        <Link
+          to={`/industry/opportunities/${opportunity.id}/applications`}
+          className="inline-flex items-center justify-center rounded-lg bg-primary-600 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-primary-700"
+        >
+          Applicants
+        </Link>
+      )}
+
       <Link
         to={`/industry/opportunities/${opportunity.id}/edit`}
         className="inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50"

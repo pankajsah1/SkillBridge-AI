@@ -16,22 +16,29 @@
  * an employer with three "active" roles that no student can see would have no way to
  * find that out from one number.
  *
- * The "coming later" list stays as Step 2 left it, minus the two items this step
- * delivered.
+ * PHASE 7 ADDS ONE NUMBER THAT IS NOT ABOUT POSTINGS. `needsReview` is how many
+ * applications nobody has looked at yet, and it is the only figure on this page
+ * worth a second request: an employer opens the dashboard to find out whether
+ * anything is waiting on them, and "6 people are waiting" is that answer. It fails
+ * silently — the opportunity counts are the page, and an error banner over them
+ * because a secondary count failed would cost more than it tells anyone.
+ *
+ * The "coming later" list stays as Step 2 left it, minus the items since delivered.
  */
 
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 
+import { fetchRecruitmentSummary } from '../../api/application.api.js';
 import DashboardLayout from '../../components/layout/DashboardLayout.jsx';
 import DashboardPlaceholder from '../../components/dashboard/DashboardPlaceholder.jsx';
 import Alert from '../../components/ui/Alert.jsx';
 import Card from '../../components/ui/Card.jsx';
 import { Spinner } from '../../components/ui/Spinner.jsx';
+import { APPLICATION_STATUSES, statusLabel } from '../../constants/applications.js';
 import useMyOpportunities from '../../hooks/useMyOpportunities.js';
 
 const UPCOMING = [
-  'Matched candidates ranked by verified skill fit',
-  'Application tracking and shortlisting',
   'Skill assessments that verify what applicants claim',
   'Collaboration requests to institutions',
 ];
@@ -70,8 +77,49 @@ export default function IndustryDashboard() {
    */
   const { opportunities, summary, isLoading, loadError } = useMyOpportunities();
 
+  /**
+   * Pipeline totals across every posting. Counts only, and allowed to fail.
+   *
+   * A second request rather than a field on the opportunity summary, because the
+   * two are different aggregates over different collections — and this one is
+   * cheap, so a page that renders without it is better than one endpoint that
+   * fails as a unit.
+   */
+  const [recruitment, setRecruitment] = useState(null);
+  const [isLoadingRecruitment, setIsLoadingRecruitment] = useState(true);
+
+  useEffect(() => {
+    let isActive = true;
+
+    (async () => {
+      try {
+        const result = await fetchRecruitmentSummary();
+        if (isActive) setRecruitment(result);
+      } catch {
+        if (isActive) setRecruitment(null);
+      } finally {
+        if (isActive) setIsLoadingRecruitment(false);
+      }
+    })();
+
+    return () => {
+      isActive = false;
+    };
+  }, []);
+
   const total = summary?.total ?? 0;
   const recent = opportunities.slice(0, 3);
+
+  const applicationTotal = recruitment?.total ?? 0;
+  const needsReview = recruitment?.needsReview ?? 0;
+  const byStatus = recruitment?.byStatus ?? {};
+
+  /* The statuses worth naming: the ones the employer has already acted on. */
+  const movedOn = [
+    APPLICATION_STATUSES.SHORTLISTED,
+    APPLICATION_STATUSES.INTERVIEW,
+    APPLICATION_STATUSES.SELECTED,
+  ].filter((value) => (byStatus[value] ?? 0) > 0);
 
   return (
     <DashboardLayout
@@ -155,6 +203,70 @@ export default function IndustryDashboard() {
               <span aria-hidden="true">→</span>
             </Link>
           </div>
+        </Card>
+
+        {/* Second, not first: the postings are the thing an employer owns here, and
+            the applicants only exist because of them. */}
+        <Card
+          title="Applications"
+          description={
+            isLoadingRecruitment
+              ? 'Counting across all your postings…'
+              : applicationTotal === 0
+                ? 'Nobody has applied to your postings yet.'
+                : `${applicationTotal} ${applicationTotal === 1 ? 'application' : 'applications'} across your postings.`
+          }
+          action={
+            <Link
+              to="/industry/opportunities"
+              className="text-sm font-medium text-primary-700 hover:text-primary-800"
+            >
+              Open a posting →
+            </Link>
+          }
+        >
+          {isLoadingRecruitment ? (
+            <div className="flex items-center gap-2.5 text-sm text-slate-500">
+              <Spinner size="sm" />
+              Loading your pipeline…
+            </div>
+          ) : applicationTotal === 0 ? (
+            <p className="text-sm text-slate-600">
+              Once students apply, each posting gets a ranked list of candidates — ordered by how
+              well their verified skills matched the role at the time they applied.
+            </p>
+          ) : (
+            <div className="space-y-3">
+              {needsReview > 0 ? (
+                <p className="text-sm text-slate-700">
+                  <span className="text-2xl font-semibold tabular-nums text-slate-900">
+                    {needsReview}
+                  </span>{' '}
+                  {needsReview === 1 ? 'application is' : 'applications are'} waiting on you —
+                  nobody has reviewed {needsReview === 1 ? 'it' : 'them'} yet.
+                </p>
+              ) : (
+                <p className="text-sm text-slate-700">
+                  Every application has been reviewed. Nothing is waiting on you.
+                </p>
+              )}
+
+              {movedOn.length > 0 ? (
+                <p className="text-sm text-slate-500">
+                  {movedOn
+                    .map((value) => `${byStatus[value]} ${statusLabel(value).toLowerCase()}`)
+                    .join(' · ')}
+                </p>
+              ) : null}
+
+              {/* Per-posting numbers deliberately are not here: this card answers
+                  "is anything waiting?", and "which posting?" is the applicants
+                  page, one click away. */}
+              <p className="text-xs text-slate-400">
+                Open a posting to see its candidates ranked by skill match.
+              </p>
+            </div>
+          )}
         </Card>
 
         <DashboardPlaceholder upcoming={UPCOMING} />

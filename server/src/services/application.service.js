@@ -25,6 +25,7 @@ import mongoose from 'mongoose';
 
 import Application from '../models/Application.js';
 import Opportunity from '../models/Opportunity.js';
+import StudentProfile from '../models/StudentProfile.js';
 import AppError from '../utils/AppError.js';
 import {
   APPLICATION_PAGE,
@@ -252,11 +253,86 @@ const loadOwnedPosting = async ({ opportunityId, ownerId }) => {
 };
 
 /**
+ * How many of the posting's required skills this candidate currently meets.
+ *
+ * COMPUTED HERE, NOT BY THE MATCHING ENGINE, and the difference matters. The
+ * matching engine produces a weighted percentage with four components; this is
+ * one plain count — "meets 4 of 6 required skills" — which is what a recruiter
+ * scanning twenty candidates can actually use. Running the full engine per
+ * applicant would also produce a live score sitting next to the frozen one, and
+ * two different match percentages on the same row is worse than one.
+ *
+ * `verified` counts only the met skills confirmed by an assessment, because
+ * "claims Python" and "scored 82 on Python" are different facts and a recruiter
+ * is entitled to know which they are looking at.
+ */
+const requiredSkillCoverage = (opportunity, profile) => {
+  const required = opportunity.requiredSkills ?? [];
+  const total = required.length;
+
+  if (!profile) return { met: 0, total, verified: 0 };
+
+  /* Keyed by skill id as a string — a profile's skillId is an ObjectId. */
+  const held = new Map((profile.skills ?? []).map((entry) => [String(entry.skillId), entry]));
+
+  let met = 0;
+  let verified = 0;
+
+  for (const requirement of required) {
+    const entry = held.get(String(requirement.skillId));
+    if (!entry) continue;
+
+    if ((entry.level ?? 0) >= (requirement.requiredLevel ?? 0)) {
+      met += 1;
+      if (entry.verified) verified += 1;
+    }
+  }
+
+  return { met, total, verified };
+};
+
+/**
+ * The candidate facts a recruiter needs to judge a row without opening it.
+ *
+ * `null` for a student who has not built a profile — a real answer, shown as "no
+ * profile yet" rather than as blanks that look like a loading bug.
+ */
+const candidateProfile = (profile) => {
+  if (!profile) return null;
+
+  return {
+    headline: profile.headline ?? '',
+    institutionName: profile.institutionName ?? '',
+    degree: profile.degree ?? '',
+    branch: profile.branch ?? '',
+    graduationYear: profile.graduationYear ?? null,
+    currentYear: profile.currentYear ?? null,
+    cgpa: profile.cgpa ?? null,
+    location: profile.location ?? '',
+    readinessScore: profile.readinessScore ?? null,
+    profileCompletion: profile.profileCompletion ?? 0,
+    skillCount: (profile.skills ?? []).length,
+    verifiedSkillCount: (profile.skills ?? []).filter((entry) => entry.verified).length,
+  };
+};
+
+/**
  * GET /opportunities/:id/applications — the applicant list for one posting.
  *
- * Ordered by the snapshot score, best first, with un-scored applications last
- * rather than first — a null score is "we do not know", and unknown should not
- * outrank a measured 40%.
+ * RANKED BY THE SNAPSHOT SCORE, WHICH IS THE ONE HONEST ORDER AVAILABLE. It is
+ * what the student applied at and what they were shown, so a shortlist built on
+ * it is a shortlist built on a number both sides saw. Un-scored applications sort
+ * last rather than first — a null is "we do not know", and unknown should not
+ * outrank a measured 40%. Mongo sorts null below any number on a descending sort,
+ * which is exactly that behaviour.
+ *
+ * `rank` IS GLOBAL, NOT PER PAGE. It is computed from the skip offset, so the
+ * third candidate on page two is #13 of 40 rather than #3 of 10.
+ *
+ * THE PROFILE FACTS ARE LIVE; THE SCORE IS NOT. Institution, branch, readiness
+ * and skill coverage are read from the student's profile as it is now, and are
+ * labelled that way in the UI. Only `matchScoreAtApplication` is frozen. Mixing
+ * the two silently would be the one thing that makes both untrustworthy.
  *
  * @param {{opportunityId: string, ownerId: string, status?: string, page?: number, limit?: number}} input
  * @returns {Promise<{applications: Array<object>, opportunity: object, statusCounts: object, page: number, limit: number, total: number}>}
@@ -295,8 +371,27 @@ export const listApplicationsForOpportunity = async ({
     {},
   );
 
+  /* One query for the whole page's profiles, not one per applicant. Twenty
+     applicants would otherwise be twenty round trips for data that a single
+     $in fetches at once. */
+  const studentIds = docs.map((doc) => doc.studentId?._id ?? doc.studentId);
+  const profiles = await StudentProfile.find({ userId: { $in: studentIds } });
+  const profileByUser = new Map(profiles.map((profile) => [String(profile.userId), profile]));
+
+  const applications = docs.map((doc, index) => {
+    const profile = profileByUser.get(String(doc.studentId?._id ?? doc.studentId)) ?? null;
+
+    return {
+      ...doc.toRecruiterView(),
+      profile: candidateProfile(profile),
+      coverage: requiredSkillCoverage(opportunity, profile),
+      /* Global, from the skip offset — see the note above. */
+      rank: paging.skip + index + 1,
+    };
+  });
+
   return {
-    applications: docs.map((doc) => doc.toRecruiterView()),
+    applications,
     opportunity: {
       id: opportunity._id.toString(),
       title: opportunity.title,
@@ -371,6 +466,48 @@ export const updateApplicationStatus = async ({
 };
 
 /**
+ * Every application across one employer's postings, by status.
+ *
+ * TWO QUERIES, NOT A JOIN. The owned posting ids come first and the aggregate
+ * matches on them, because ownership lives on Opportunity and an application
+ * carries no employer id of its own. A `$lookup` would read the same two
+ * collections and hide the ownership check inside a pipeline stage.
+ *
+ * An employer with no postings gets zeroes rather than an aggregate over an empty
+ * `$in`, which saves a round trip and is the same answer.
+ *
+ * `needsReview` is the number this exists for: applications nobody has looked at
+ * yet. A recruiter opening the dashboard wants "6 waiting on you", not a table.
+ *
+ * @param {string} ownerId
+ * @returns {Promise<{total: number, byStatus: object, needsReview: number, openPostings: number}>}
+ */
+export const getRecruitmentSummary = async (ownerId) => {
+  const postings = await Opportunity.find({ industryId: ownerId }).select('_id status deadline');
+
+  const empty = { total: 0, byStatus: {}, needsReview: 0, openPostings: 0 };
+  if (postings.length === 0) return empty;
+
+  const openPostings = postings.filter(
+    (posting) => availabilityFor(posting) === AVAILABILITY.OPEN,
+  ).length;
+
+  const grouped = await Application.aggregate([
+    { $match: { opportunityId: { $in: postings.map((posting) => posting._id) } } },
+    { $group: { _id: '$status', count: { $sum: 1 } } },
+  ]);
+
+  const byStatus = grouped.reduce((counts, row) => ({ ...counts, [row._id]: row.count }), {});
+  const total = grouped.reduce((sum, row) => sum + row.count, 0);
+
+  const needsReview =
+    (byStatus[APPLICATION_STATUSES.APPLIED] ?? 0) +
+    (byStatus[APPLICATION_STATUSES.UNDER_REVIEW] ?? 0);
+
+  return { total, byStatus, needsReview, openPostings };
+};
+
+/**
  * How many applications a student has, by status.
  *
  * Used by the dashboard card, which wants "2 shortlisted" without pulling the
@@ -396,5 +533,6 @@ export default {
   getApplicationForStudent,
   listApplicationsForOpportunity,
   updateApplicationStatus,
+  getRecruitmentSummary,
   countMyApplications,
 };

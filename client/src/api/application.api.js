@@ -129,6 +129,23 @@ export const updateApplicationStatus = async (applicationId, { status, note } = 
   return response.data.data.application;
 };
 
+/**
+ * GET /industry/applications/summary — pipeline totals across every owned posting.
+ *
+ * `needsReview` is applied + under_review: the count of people waiting on this
+ * employer to do something. That is the one number the industry dashboard leads
+ * with, so the server computes it rather than leaving each caller to add up two
+ * fields and risk disagreeing about which statuses count.
+ *
+ * @returns {Promise<{total: number, byStatus: object, needsReview: number, openPostings: number}>}
+ */
+export const fetchRecruitmentSummary = async () => {
+  const response = await axiosInstance.get('/industry/applications/summary');
+  const { total = 0, byStatus = {}, needsReview = 0, openPostings = 0 } = response.data.data;
+
+  return { total, byStatus, needsReview, openPostings };
+};
+
 export default {
   applyToOpportunity,
   fetchMyApplications,
@@ -137,4 +154,5 @@ export default {
   fetchApplication,
   fetchOpportunityApplications,
   updateApplicationStatus,
+  fetchRecruitmentSummary,
 };

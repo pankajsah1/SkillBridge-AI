@@ -38,6 +38,7 @@ import MatchedOpportunities from '../pages/student/MatchedOpportunities.jsx';
 import MyApplications from '../pages/student/MyApplications.jsx';
 import IndustryDashboard from '../pages/dashboards/IndustryDashboard.jsx';
 import MyOpportunities from '../pages/industry/MyOpportunities.jsx';
+import OpportunityApplicants from '../pages/industry/OpportunityApplicants.jsx';
 import OpportunityFormPage from '../pages/industry/OpportunityFormPage.jsx';
 import AcademicianDashboard from '../pages/dashboards/AcademicianDashboard.jsx';
 import InstitutionDashboard from '../pages/dashboards/InstitutionDashboard.jsx';
@@ -123,6 +124,15 @@ export default function AppRouter() {
             `new` is listed first so it can never be read as an id. */}
         <Route path="/industry/opportunities/new" element={<OpportunityFormPage />} />
         <Route path="/industry/opportunities/:id/edit" element={<OpportunityFormPage />} />
+
+        {/* Applicants hangs off the posting because that is what it is a list of.
+            No route for a single applicant: the card already shows everything the
+            detail page would, and the decision buttons belong next to the ranking
+            they are being made from. */}
+        <Route
+          path="/industry/opportunities/:id/applications"
+          element={<OpportunityApplicants />}
+        />
       </Route>
 
       <Route element={<RoleRoute allowedRoles={[ROLES.ACADEMICIAN]} />}>

@@ -19,6 +19,7 @@ import {
   countMyApplications,
   createApplication,
   getApplicationForStudent,
+  getRecruitmentSummary,
   listApplicationsForOpportunity,
   listMyApplications,
   updateApplicationStatus,
@@ -145,6 +146,22 @@ export const patchApplicationStatus = asyncHandler(async (req, res) => {
   });
 });
 
+/**
+ * GET /api/v1/industry/applications/summary — the employer's pipeline totals.
+ *
+ * On the industry router rather than under /opportunities, because it belongs to
+ * no single posting. That router is already INDUSTRY-only and already scoped to
+ * the caller, so `req.user.id` is the whole authorization story here.
+ */
+export const getRecruitmentTotals = asyncHandler(async (req, res) => {
+  const summary = await getRecruitmentSummary(req.user.id);
+
+  return sendSuccess(res, {
+    message: 'Recruitment summary retrieved successfully.',
+    data: summary,
+  });
+});
+
 export default {
   postApplication,
   listMine,
@@ -152,4 +169,5 @@ export default {
   getApplication,
   listForOpportunity,
   patchApplicationStatus,
+  getRecruitmentTotals,
 };

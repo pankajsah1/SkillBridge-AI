@@ -47,7 +47,10 @@ import {
   removeOpportunity,
 } from '../controllers/opportunity.controller.js';
 import { validateObjectIdParam } from '../validators/studentProfile.validator.js';
-import { listForOpportunity } from '../controllers/application.controller.js';
+import {
+  getRecruitmentTotals,
+  listForOpportunity,
+} from '../controllers/application.controller.js';
 import { validateApplicationQuery } from '../validators/application.validator.js';
 import {
   validateCreateOpportunity,
@@ -109,5 +112,16 @@ export const industryRoutes = Router();
 industryRoutes.use(authenticate, allowRoles(ROLES.INDUSTRY));
 
 industryRoutes.get('/opportunities', validateOpportunityQuery, listMyOpportunities);
+
+/**
+ * Pipeline totals across every posting this employer owns.
+ *
+ * On this router rather than as another `/opportunities/...` path, because it
+ * belongs to no single posting — and this router is already INDUSTRY-only and
+ * already scoped to `req.user.id`, so there is no `/:id` for a literal segment to
+ * collide with. Counts only: the dashboard card needs "6 waiting on you", and
+ * making it read a paginated list to work that out would be wrong past page one.
+ */
+industryRoutes.get('/applications/summary', getRecruitmentTotals);
 
 export default { opportunityRoutes, industryRoutes };

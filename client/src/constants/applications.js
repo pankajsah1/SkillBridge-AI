@@ -111,6 +111,67 @@ export const statusMeaning = (status) => statusMeta(status).meaning;
  */
 export const pipelineIndex = (status) => APPLICATION_PIPELINE.indexOf(status);
 
+/**
+ * The moves a recruiter is allowed to make from a given status.
+ *
+ * A MIRROR OF THE SERVER'S TRANSITION MAP, AND ONLY EVER USED TO HIDE BUTTONS.
+ * The server refuses an illegal move with a 400 regardless of what this file
+ * says; this exists so a recruiter is not offered "Interview" on an application
+ * nobody has shortlisted, only to be told no after clicking. If the two ever
+ * disagree the server wins and this is the bug.
+ */
+const APPLICATION_STATUS_TRANSITIONS = Object.freeze({
+  [APPLICATION_STATUSES.APPLIED]: Object.freeze([
+    APPLICATION_STATUSES.UNDER_REVIEW,
+    APPLICATION_STATUSES.SHORTLISTED,
+    APPLICATION_STATUSES.REJECTED,
+  ]),
+  [APPLICATION_STATUSES.UNDER_REVIEW]: Object.freeze([
+    APPLICATION_STATUSES.SHORTLISTED,
+    APPLICATION_STATUSES.REJECTED,
+  ]),
+  [APPLICATION_STATUSES.SHORTLISTED]: Object.freeze([
+    APPLICATION_STATUSES.INTERVIEW,
+    APPLICATION_STATUSES.SELECTED,
+    APPLICATION_STATUSES.REJECTED,
+  ]),
+  [APPLICATION_STATUSES.INTERVIEW]: Object.freeze([
+    APPLICATION_STATUSES.SELECTED,
+    APPLICATION_STATUSES.REJECTED,
+  ]),
+  [APPLICATION_STATUSES.SELECTED]: Object.freeze([]),
+  [APPLICATION_STATUSES.REJECTED]: Object.freeze([]),
+});
+
+export const nextStatusesFor = (status) => APPLICATION_STATUS_TRANSITIONS[status] ?? [];
+
+/**
+ * The verb on the button, which is not the name of the destination status.
+ *
+ * "Shortlisted" is a state; "Shortlist" is the thing the recruiter is about to
+ * do. Buttons get verbs, badges get states, and conflating the two is how an
+ * interface ends up reading like a database.
+ */
+export const STATUS_ACTION_LABELS = Object.freeze({
+  [APPLICATION_STATUSES.UNDER_REVIEW]: 'Start review',
+  [APPLICATION_STATUSES.SHORTLISTED]: 'Shortlist',
+  [APPLICATION_STATUSES.INTERVIEW]: 'Move to interview',
+  [APPLICATION_STATUSES.SELECTED]: 'Select',
+  [APPLICATION_STATUSES.REJECTED]: 'Not selected',
+});
+
+export const statusActionLabel = (status) => STATUS_ACTION_LABELS[status] ?? statusLabel(status);
+
+/**
+ * The button style for a move, so the destructive one never looks routine.
+ *
+ * `secondary` for progress, `ghost` for rejection — rejecting a candidate is a
+ * decision that should take one deliberate extra beat, and a button that looks
+ * like every other button does not give it one.
+ */
+export const statusActionVariant = (status) =>
+  status === APPLICATION_STATUSES.REJECTED ? 'ghost' : 'secondary';
+
 /** "12 August 2026" — the same long form the opportunity pages use. */
 export const formatApplicationDate = (value) => {
   if (!value) return null;
