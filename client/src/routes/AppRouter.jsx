@@ -35,6 +35,7 @@ import TakeAssessment from '../pages/student/TakeAssessment.jsx';
 import AssessmentResult from '../pages/student/AssessmentResult.jsx';
 import CareerReadiness from '../pages/student/CareerReadiness.jsx';
 import MatchedOpportunities from '../pages/student/MatchedOpportunities.jsx';
+import MyApplications from '../pages/student/MyApplications.jsx';
 import IndustryDashboard from '../pages/dashboards/IndustryDashboard.jsx';
 import MyOpportunities from '../pages/industry/MyOpportunities.jsx';
 import OpportunityFormPage from '../pages/industry/OpportunityFormPage.jsx';
@@ -106,6 +107,13 @@ export default function AppRouter() {
             "what exists", this is "what fits me". A student who wants the ranked
             answer should be able to link straight to it. */}
         <Route path="/student/matches" element={<MatchedOpportunities />} />
+
+        {/* Applications is a list of the student's own rows, so it needs no id —
+            the token scopes it on the server. A single application has no route
+            of its own: the timeline it would show is already inline on this list
+            and on the opportunity page, and a third place to render it would be a
+            third place for it to drift. */}
+        <Route path="/student/applications" element={<MyApplications />} />
       </Route>
 
       <Route element={<RoleRoute allowedRoles={[ROLES.INDUSTRY]} />}>

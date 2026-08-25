@@ -20,6 +20,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 
+import { fetchApplicationSummary } from '../../api/application.api.js';
 import { fetchLatestAssessment } from '../../api/assessment.api.js';
 import { fetchMyReadiness } from '../../api/studentProfile.api.js';
 import useStudentProfile from '../../hooks/useStudentProfile.js';
@@ -30,6 +31,7 @@ import Badge from '../../components/ui/Badge.jsx';
 import Card from '../../components/ui/Card.jsx';
 import ProgressBar from '../../components/ui/ProgressBar.jsx';
 import { Spinner } from '../../components/ui/Spinner.jsx';
+import { APPLICATION_STATUSES, statusLabel } from '../../constants/applications.js';
 
 const UPCOMING = ['Your verified digital portfolio'];
 
@@ -76,6 +78,20 @@ export default function StudentDashboard() {
   const [readinessRole, setReadinessRole] = useState(null);
   const [isLoadingReadiness, setIsLoadingReadiness] = useState(true);
 
+  /**
+   * Application counts by status.
+   *
+   * THE ONE CARD ON THIS PAGE THAT DOES FETCH ITS NUMBER, and the exception is
+   * deliberate: "1 shortlisted" is the whole reason a student opens the portal on
+   * a given morning, so it is worth a request where "3 matches" was not. It reads
+   * a dedicated summary endpoint that returns counts only, not the list — so this
+   * costs one small query rather than a page of rows the card would not render.
+   *
+   * Silent on failure, like the two above.
+   */
+  const [applicationSummary, setApplicationSummary] = useState(null);
+  const [isLoadingApplications, setIsLoadingApplications] = useState(true);
+
   useEffect(() => {
     let isActive = true;
 
@@ -116,9 +132,42 @@ export default function StudentDashboard() {
     };
   }, []);
 
+  useEffect(() => {
+    let isActive = true;
+
+    (async () => {
+      try {
+        const summary = await fetchApplicationSummary();
+        if (isActive) setApplicationSummary(summary);
+      } catch {
+        if (isActive) setApplicationSummary(null);
+      } finally {
+        if (isActive) setIsLoadingApplications(false);
+      }
+    })();
+
+    return () => {
+      isActive = false;
+    };
+  }, []);
+
   const completion = profile?.profileCompletion ?? 0;
   const skillCount = profile?.skills?.length ?? 0;
   const goalCount = profile?.targetRoles?.length ?? 0;
+
+  const applicationTotal = applicationSummary?.total ?? 0;
+  const byStatus = applicationSummary?.byStatus ?? {};
+
+  /**
+   * The statuses worth a chip: the ones that mean someone at a company has acted.
+   * "3 applied" is not news to the student who applied three times.
+   */
+  const activeStatuses = [
+    APPLICATION_STATUSES.UNDER_REVIEW,
+    APPLICATION_STATUSES.SHORTLISTED,
+    APPLICATION_STATUSES.INTERVIEW,
+    APPLICATION_STATUSES.SELECTED,
+  ].filter((status) => (byStatus[status] ?? 0) > 0);
 
   return (
     <DashboardLayout
@@ -397,6 +446,60 @@ export default function StudentDashboard() {
             which ones you are short on and by how much, so a match is something you can act on
             rather than a number to take on trust.
           </p>
+        </Card>
+
+        {/* Applications last of the working cards, because it is the end of the
+            journey the ones above set up: assess, close the gaps, find the fit,
+            apply. It is also the only card here that shows a fetched count — see
+            the note on the state above. */}
+        <Card
+          title="Your applications"
+          description={
+            applicationTotal > 0
+              ? 'Where each of your applications stands right now.'
+              : 'Apply to an opportunity and track it from here.'
+          }
+          action={
+            <Link
+              to="/student/applications"
+              className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary-600 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-primary-700"
+            >
+              {applicationTotal > 0 ? 'Track applications' : 'View applications'}
+            </Link>
+          }
+        >
+          {isLoadingApplications ? (
+            <div className="flex items-center gap-2.5 py-1 text-sm text-slate-500">
+              <Spinner size="sm" />
+              Checking your applications…
+            </div>
+          ) : applicationTotal > 0 ? (
+            <div className="space-y-3">
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge variant="primary">
+                  {applicationTotal} {applicationTotal === 1 ? 'application' : 'applications'}
+                </Badge>
+
+                {activeStatuses.map((status) => (
+                  <Badge key={status} variant="success">
+                    {byStatus[status]} {statusLabel(status).toLowerCase()}
+                  </Badge>
+                ))}
+              </div>
+
+              <p className="text-sm text-slate-600">
+                {activeStatuses.length > 0
+                  ? 'A company has moved at least one of your applications forward. Open the list to see when, and what happens next.'
+                  : 'Nothing has moved yet. Companies see your profile and your measured skill levels with every application.'}
+              </p>
+            </div>
+          ) : (
+            <p className="text-sm text-slate-600">
+              You have not applied to anything yet. Every application records the match score it was
+              made at, so a company sees the same number you did — and you can see exactly where each
+              one stands afterwards.
+            </p>
+          )}
         </Card>
 
         <DashboardPlaceholder upcoming={UPCOMING} />

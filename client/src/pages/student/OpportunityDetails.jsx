@@ -1,10 +1,12 @@
 /**
  * One opportunity, in full.
  *
- * NO APPLY BUTTON, AND NOT BY ACCIDENT. There is no Application model in this step,
- * so a button here could only either do nothing or lie about having done something.
- * The page says plainly that applying is not open yet — which is the honest version
- * of the same information and costs a judge no clicks to discover.
+ * THE APPLY BOX IS A COMPONENT, NOT A BUTTON HERE. Step 4 shipped this page with
+ * a sentence saying applications were not open, because there was no Application
+ * model to point one at and a disabled button would have been a promise the build
+ * could not keep. Phase 6 is that model, so the sentence is gone and ApplyCard is
+ * in its place — it owns the five states applying actually has (checking, form,
+ * submitting, already applied, posting closed) so this page does not have to.
  *
  * THE MATCH SCORE IS THE SERVER'S, AND IT SHOWS ITS WORKING. Step 4 deliberately
  * left this page without a fit number, because a percentage invented in the
@@ -12,6 +14,11 @@
  * that number was waiting for: GET /students/matches/:id returns the score, the
  * four weighted parts behind it and the sentences that explain them, and this page
  * renders them without recomputing anything.
+ *
+ * THE SCORE IS PASSED DOWN TO THE APPLY BOX FOR DISPLAY ONLY. The number stored
+ * with an application is calculated server-side at creation; handing this one to
+ * ApplyCard lets it say "you are applying at 78%" rather than making the browser
+ * the source of a figure a recruiter will later act on.
  *
  * A MISSING MATCH IS NOT AN ERROR HERE. The breakdown fails quietly — the posting
  * is the page, and an error banner over a perfectly readable job description
@@ -29,6 +36,7 @@ import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 
 import { fetchOpportunityMatch } from '../../api/matching.api.js';
+import ApplyCard from '../../components/student/ApplyCard.jsx';
 import MatchBreakdown from '../../components/student/MatchBreakdown.jsx';
 import DashboardLayout from '../../components/layout/DashboardLayout.jsx';
 import Alert from '../../components/ui/Alert.jsx';
@@ -359,16 +367,14 @@ export default function OpportunityDetails() {
           </Card>
         ) : null}
 
-        {/* Deliberately a sentence and not a button. A disabled "Apply" would be the
-            first thing anyone clicks, and it would be a promise this build cannot
-            keep. */}
-        <Card title="Applying">
-          <p className="text-sm text-slate-600">
-            Applications are not open in the portal yet — this part of SkillBridge covers finding
-            opportunities. Adding the skills this role asks for to your profile is the useful thing
-            to do now, so you are ready when applications open.
-          </p>
-        </Card>
+        {/* Last, deliberately: a student should read what the role asks for and
+            who can apply before deciding to. The card checks whether they have
+            already applied, so it is safe to render for any availability. */}
+        <ApplyCard
+          opportunityId={id}
+          availability={opportunity.availability}
+          matchScore={typeof match?.matchScore === 'number' ? match.matchScore : null}
+        />
       </div>
     </DashboardLayout>
   );

@@ -47,6 +47,8 @@ import {
   removeOpportunity,
 } from '../controllers/opportunity.controller.js';
 import { validateObjectIdParam } from '../validators/studentProfile.validator.js';
+import { listForOpportunity } from '../controllers/application.controller.js';
+import { validateApplicationQuery } from '../validators/application.validator.js';
 import {
   validateCreateOpportunity,
   validateOpportunityQuery,
@@ -74,6 +76,26 @@ opportunityRoutes
     patchOpportunity,
   )
   .delete(allowRoles(ROLES.INDUSTRY), validateObjectIdParam('id'), removeOpportunity);
+
+/**
+ * The applicant list for one posting.
+ *
+ * Hung off /opportunities/:id rather than given a mount of its own, because that
+ * is the resource it belongs to — and Express reads `/:id/applications` as a
+ * distinct path from `/:id` above, so the order of the two is not a hazard.
+ *
+ * `allowRoles(ROLES.INDUSTRY)` proves the caller is an employer. It cannot prove
+ * they posted this job; application.service.js checks that by loading the
+ * opportunity and testing `isOwnedBy`, so one company can never read another's
+ * applicants.
+ */
+opportunityRoutes.get(
+  '/:id/applications',
+  allowRoles(ROLES.INDUSTRY),
+  validateObjectIdParam('id'),
+  validateApplicationQuery,
+  listForOpportunity,
+);
 
 /**
  * `${API_PREFIX}/industry` — the owner's management view (TRD.md section 39).
