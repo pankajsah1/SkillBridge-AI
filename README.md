@@ -54,7 +54,11 @@ skillbridge-ai/
 │   │   │   ├── health.api.js
 │   │   │   ├── catalogue.api.js      # read-only: skills, career roles
 │   │   │   ├── studentProfile.api.js # profile, career goals, skills
-│   │   │   └── opportunity.api.js    # browse, detail, and the owner's CRUD
+│   │   │   ├── opportunity.api.js    # browse, detail, and the owner's CRUD
+│   │   │   ├── assessment.api.js     # generate, take, submit, history
+│   │   │   ├── matching.api.js       # readiness, recommendations, matches
+│   │   │   ├── application.api.js    # apply, my applications, applicants
+│   │   │   └── analytics.api.js      # the institution overview, one call
 │   │   ├── components/
 │   │   │   ├── ui/              # Button, Input, Textarea, Select, Alert,
 │   │   │   │                    # Spinner, Card, Badge, ProgressBar, EmptyState,
@@ -65,14 +69,22 @@ skillbridge-ai/
 │   │   │   ├── profile/         # ProfileForm, InterestsField,
 │   │   │   │                    # CareerGoalsSection, SkillsSection,
 │   │   │   │                    # SkillLevelPicker, ProfileCompletionCard
-│   │   │   └── opportunities/   # OpportunityCard, OpportunityForm,
-│   │   │                        # SkillRequirementPicker, SearchInput,
-│   │   │                        # StudentFilterBar, OwnerFilterBar
+│   │   │   ├── opportunities/   # OpportunityCard, OpportunityForm,
+│   │   │   │                    # SkillRequirementPicker, SearchInput,
+│   │   │   │                    # StudentFilterBar, OwnerFilterBar
+│   │   │   ├── student/
+│   │   │   │   ├── MatchBreakdown.jsx        # why a match scored what it did
+│   │   │   │   ├── RecommendedLearning.jsx   # gap-driven study suggestions
+│   │   │   │   ├── ApplyCard.jsx             # the apply form + its refusals
+│   │   │   │   └── ApplicationStatusTimeline.jsx  # the real status history
+│   │   │   ├── industry/CandidateCard.jsx    # one ranked applicant
+│   │   │   └── institution/AnalyticsCharts.jsx  # CSS bars, no chart library
 │   │   ├── constants/
 │   │   │   ├── roles.js         # role labels + dashboard paths
 │   │   │   ├── skills.js        # proficiency bands, category labels
-│   │   │   └── opportunities.js # types, work modes, statuses, availability,
-│   │   │                        # limits — mirrors the server file of the same name
+│   │   │   ├── opportunities.js # types, work modes, statuses, availability,
+│   │   │   │                    # limits — mirrors the server file of the same name
+│   │   │   └── applications.js  # statuses, labels, the pipeline order
 │   │   ├── context/AuthContext.jsx
 │   │   ├── hooks/
 │   │   │   ├── useStudentProfile.js  # loads the profile, owns every write
@@ -80,24 +92,32 @@ skillbridge-ai/
 │   │   │   ├── useOpportunities.js   # student browse: filters + pagination
 │   │   │   ├── useOpportunity.js     # one opportunity, for the detail page
 │   │   │   ├── useMyOpportunities.js # the owner's list, summary and row actions
-│   │   │   └── useOpportunityEditor.js # create/edit form state and submission
+│   │   │   ├── useOpportunityEditor.js # create/edit form state and submission
+│   │   │   └── useAssessmentAttempt.js # one attempt: answers, timer, submit
 │   │   ├── pages/
 │   │   │   ├── Login.jsx  Register.jsx
 │   │   │   ├── SystemStatus.jsx      # the Step 1 status card, now at /status
 │   │   │   ├── Unauthorized.jsx  NotFound.jsx
-│   │   │   ├── dashboards/           # one per role; STUDENT and INDUSTRY are live
+│   │   │   ├── dashboards/           # one per role
 │   │   │   │   ├── StudentDashboard.jsx      # profile + opportunity browsing
 │   │   │   │   ├── IndustryDashboard.jsx     # posting counts + shortcuts
+│   │   │   │   ├── InstitutionDashboard.jsx  # cohort readiness + skill gaps
 │   │   │   │   ├── AcademicianDashboard.jsx  # still a placeholder
-│   │   │   │   ├── InstitutionDashboard.jsx  # still a placeholder
 │   │   │   │   └── AdminDashboard.jsx        # still a placeholder
 │   │   │   ├── student/
 │   │   │   │   ├── StudentProfile.jsx
 │   │   │   │   ├── BrowseOpportunities.jsx   # search, filters, pagination
-│   │   │   │   └── OpportunityDetails.jsx    # read-only; no Apply button
+│   │   │   │   ├── OpportunityDetails.jsx    # detail + match + apply
+│   │   │   │   ├── StartAssessment.jsx       # pick a skill, start an attempt
+│   │   │   │   ├── TakeAssessment.jsx        # the attempt itself
+│   │   │   │   ├── AssessmentResult.jsx      # score, band, what to study
+│   │   │   │   ├── CareerReadiness.jsx       # readiness + gaps per career goal
+│   │   │   │   ├── MatchedOpportunities.jsx  # ranked matches, with reasons
+│   │   │   │   └── MyApplications.jsx        # every application and its history
 │   │   │   └── industry/
 │   │   │       ├── MyOpportunities.jsx       # the owner's management list
-│   │   │       └── OpportunityFormPage.jsx   # one page for create and edit
+│   │   │       ├── OpportunityFormPage.jsx   # one page for create and edit
+│   │   │       └── OpportunityApplicants.jsx # ranked applicants + status moves
 │   │   ├── routes/
 │   │   │   ├── AppRouter.jsx    # all route definitions
 │   │   │   └── guards.jsx       # ProtectedRoute, RoleRoute, PublicOnlyRoute
@@ -124,17 +144,24 @@ skillbridge-ai/
 │   │   ├── constants/
 │   │   │   ├── roles.js         # the five roles, in one place
 │   │   │   ├── skills.js        # proficiency bands, categories, domains
-│   │   │   └── opportunities.js # types, work modes, statuses, the status
-│   │   │                        # transition graph, limits, availability rules
+│   │   │   ├── opportunities.js # types, work modes, statuses, the status
+│   │   │   │                    # transition graph, limits, availability rules
+│   │   │   ├── assessments.js   # attempt limits, difficulty mix, scoring bands
+│   │   │   └── applications.js  # statuses, the legal transition map, labels
 │   │   ├── controllers/         # request/response only
 │   │   │   ├── auth.controller.js
 │   │   │   ├── health.controller.js
 │   │   │   ├── catalogue.controller.js  # skills + career roles, read-only
 │   │   │   ├── studentProfile.controller.js
-│   │   │   └── opportunity.controller.js
+│   │   │   ├── opportunity.controller.js
+│   │   │   ├── assessment.controller.js
+│   │   │   ├── application.controller.js
+│   │   │   └── analytics.controller.js  # reads req.user and nothing else
 │   │   ├── data/
 │   │   │   ├── skills.seed.js       # the seed catalogue, as plain data
-│   │   │   └── careerRoles.seed.js
+│   │   │   ├── careerRoles.seed.js
+│   │   │   ├── questionBank.seed.js # the offline fallback question bank
+│   │   │   └── demo.seed.js         # the demo cohort, postings and pipeline
 │   │   ├── middleware/
 │   │   │   ├── authMiddleware.js    # verifies the JWT, loads the user
 │   │   │   ├── roleMiddleware.js    # allowRoles(...)
@@ -144,19 +171,33 @@ skillbridge-ai/
 │   │   │   ├── Skill.js         # the shared skill catalogue
 │   │   │   ├── CareerRole.js    # target roles + their required skills
 │   │   │   ├── StudentProfile.js    # one per student, refs User
-│   │   │   └── Opportunity.js       # one per posting, refs User + Skill
+│   │   │   ├── Opportunity.js       # one per posting, refs User + Skill
+│   │   │   ├── Assessment.js        # one attempt, with its questions
+│   │   │   └── Application.js       # one per student per posting, unique
 │   │   ├── routes/
 │   │   │   ├── index.js         # mounts everything under /api/v1
 │   │   │   ├── auth.routes.js
 │   │   │   ├── health.routes.js
 │   │   │   ├── catalogue.routes.js  # /skills and /career-roles
 │   │   │   ├── student.routes.js    # /students/profile and below
-│   │   │   └── opportunity.routes.js # /opportunities and /industry
+│   │   │   ├── opportunity.routes.js # /opportunities and /industry
+│   │   │   ├── assessment.routes.js  # /assessments
+│   │   │   ├── application.routes.js # /applications
+│   │   │   └── analytics.routes.js   # /analytics/institution
 │   │   ├── services/            # business logic
 │   │   │   ├── auth.service.js
 │   │   │   ├── catalogue.service.js
 │   │   │   ├── studentProfile.service.js
-│   │   │   └── opportunity.service.js   # every owner query filters on the owner
+│   │   │   ├── opportunity.service.js   # every owner query filters on the owner
+│   │   │   ├── assessment.service.js    # generates, scores, writes back skills
+│   │   │   ├── readiness.service.js     # career readiness + skill gaps
+│   │   │   ├── recommendation.service.js # what to study, from the gaps
+│   │   │   ├── matching.service.js      # the match score, pure and testable
+│   │   │   ├── application.service.js   # apply, and the legal status moves
+│   │   │   ├── analytics.service.js     # the institution overview; read-only
+│   │   │   └── ai/
+│   │   │       ├── aiProvider.js        # one HTTP call, provider-agnostic
+│   │   │       └── assessmentAi.js      # question TEXT only — never a score
 │   │   ├── utils/
 │   │   │   ├── AppError.js
 │   │   │   ├── apiResponse.js
@@ -165,12 +206,15 @@ skillbridge-ai/
 │   │   ├── validators/
 │   │   │   ├── auth.validator.js
 │   │   │   ├── studentProfile.validator.js
-│   │   │   └── opportunity.validator.js
+│   │   │   ├── opportunity.validator.js
+│   │   │   ├── assessment.validator.js
+│   │   │   └── application.validator.js
 │   │   ├── app.js               # builds the Express app
 │   │   └── server.js            # starts it
 │   ├── scripts/
 │   │   ├── checkDbConnection.js
-│   │   └── seed.js              # seeds the skill + career-role catalogue
+│   │   ├── seed.js              # seeds the skill + career-role catalogue
+│   │   └── seedDemo.js          # seeds the demo cohort, postings, pipeline
 │   └── package.json
 │
 ├── .gitignore
@@ -299,6 +343,7 @@ show client, API and database all connected.
 | `server` | `npm start` | Start once, no watcher |
 | `server` | `npm run db:check` | Test MongoDB connectivity in isolation |
 | `server` | `npm run seed` | Load the skill and career-role catalogue |
+| `server` | `npm run seed:demo` | Load the demo cohort, postings and applications |
 | `client` | `npm run dev` | Vite dev server |
 | `client` | `npm run build` | Production build into `dist/` |
 | `client` | `npm run preview` | Serve the production build locally |
@@ -939,6 +984,209 @@ test asserts every entry in them agrees.
 
 ---
 
+## Skill assessments
+
+A student picks a skill, answers a short multiple-choice attempt, and gets a
+score that writes back to their profile as a **verified** skill level. Everything
+about *what* the score is stays on the server.
+
+### Where the questions come from, and where they do not
+
+An AI provider may write the question and option **text**. It never sees a score,
+never marks an answer, and never decides a level. Correctness is stored on the
+question when the attempt is generated, and scoring is arithmetic in
+`assessment.service.js` — so an AI outage cannot change anybody's marks.
+
+`AI_API_KEY` is optional. With no key configured the service falls back to
+`data/questionBank.seed.js`, and the whole flow works offline. That is the mode
+the demo runs in.
+
+### Endpoints
+
+Every route here is **STUDENT-only** (`router.use(authenticate, allowRoles(STUDENT))`).
+
+| Method | Route | Purpose |
+| --- | --- | --- |
+| `GET` | `/api/v1/assessments` | This student's attempt history, paginated |
+| `POST` | `/api/v1/assessments` | Generate a new attempt for one skill |
+| `GET` | `/api/v1/assessments/active` | The attempt in progress, if there is one |
+| `GET` | `/api/v1/assessments/latest` | The most recently completed attempt |
+| `GET` | `/api/v1/assessments/:assessmentId` | One attempt, without the answer key |
+| `POST` | `/api/v1/assessments/:assessmentId/submit` | Submit answers, get the score |
+| `DELETE` | `/api/v1/assessments/:assessmentId` | Abandon an attempt in progress |
+
+A submitted attempt is immutable: submitting twice is a `409`, and the answer key
+is never included in any response until after submission.
+
+### The student flow in the browser
+
+`/student/assessment` → pick a skill → `/student/assessment/:assessmentId` to
+answer → `/student/assessment/:assessmentId/result` for the score, the band, and
+what to study next. The result writes the level onto the profile automatically, so
+the skill appears as verified on `/student/profile` without another step.
+
+---
+
+## Career readiness, gaps and learning recommendations
+
+Both of these are **computed on request and stored nowhere**. That is deliberate:
+a stored readiness score goes stale the moment a student adds a skill, and two
+places that could disagree eventually will.
+
+| Method | Route | Auth | Purpose |
+| --- | --- | --- | --- |
+| `GET` | `/api/v1/students/readiness` | `STUDENT` | Readiness per career goal, plus the gaps behind it |
+| `GET` | `/api/v1/students/recommendations` | `STUDENT` | What to study next, derived from those same gaps |
+
+Both accept an optional `careerRoleId` to narrow the answer to one goal;
+`recommendations` also accepts `limit` (1–10). Readiness is the weighted distance
+between the levels a career role requires and the levels the student holds — the
+weights live in `constants/skills.js`, not in the AI layer.
+
+`/student/readiness` in the browser shows one card per career goal, each gap
+listed with the level required and the level held.
+
+---
+
+## Opportunity matching
+
+| Method | Route | Auth | Purpose |
+| --- | --- | --- | --- |
+| `GET` | `/api/v1/students/matches` | `STUDENT` | The ranked list of live postings for this student |
+| `GET` | `/api/v1/students/matches/:opportunityId` | `STUDENT` | The breakdown behind one posting's score |
+
+These live under `/students` rather than `/opportunities` because the answer is
+about *this* student: the owner is `req.user.id`, so there is no request shape in
+which one student can ask for another's matches. `limit` accepts 1–20.
+
+`calculateMatch()` in `matching.service.js` is a pure function of an opportunity
+and a student, which is what makes the number reproducible and the breakdown
+honest — the UI shows the same components the score was built from, never a
+re-derived approximation.
+
+---
+
+## Applications
+
+| Method | Route | Auth | Purpose |
+| --- | --- | --- | --- |
+| `POST` | `/api/v1/applications` | `STUDENT` | Apply to a posting |
+| `GET` | `/api/v1/applications/me` | `STUDENT` | This student's applications, paginated |
+| `GET` | `/api/v1/applications/summary` | `STUDENT` | Counts by status, for the dashboard |
+| `GET` | `/api/v1/applications/:id` | `STUDENT` | One application and its full status history |
+| `PATCH` | `/api/v1/applications/:id/status` | `INDUSTRY` | Move an applicant along the pipeline |
+| `GET` | `/api/v1/opportunities/:id/applications` | `INDUSTRY` | The applicants for one posting, ranked |
+| `GET` | `/api/v1/industry/applications/summary` | `INDUSTRY` | Totals across all of this employer's postings |
+
+Applying is refused — with a reason, not a generic `400` — when the posting is not
+active, when its deadline has passed, and when this student has already applied.
+The duplicate rule is enforced twice: a friendly check, and a unique compound
+index on `{ studentId, opportunityId }` that a race cannot get around.
+
+**The match score is frozen at apply time.** `matchScoreAtApplication` is computed
+once, by the real matching engine, and never recomputed — so an employer ranking
+applicants six weeks later sees the score that existed when each person applied,
+not one that drifted as they added skills.
+
+**Statuses move along a defined graph**, not freely:
+
+```text
+applied → under_review → shortlisted → interview → selected
+   └───────────┴──────────────┴────────────┴──────→ rejected
+```
+
+`canTransition(from, to)` in `constants/applications.js` is the only authority.
+There is no path to `interview` that skips `shortlisted`, and `selected` and
+`rejected` are terminal. Every move appends to `statusHistory` with a timestamp
+and an optional note, which is what the student's timeline renders.
+
+---
+
+## Institution analytics
+
+One endpoint, one page, one request.
+
+| Method | Route | Auth | Purpose |
+| --- | --- | --- | --- |
+| `GET` | `/api/v1/analytics/institution` | `INSTITUTION` | Cohort readiness, skill gaps against live hiring, and the placement pipeline |
+
+The controller reads `req.user` and **nothing** from the query, body or params —
+an institution cannot ask about a cohort that is not its own. Students are matched
+to an institution by `institutionId` where it exists and by exact
+`institutionName` otherwise, so a college sees its own students the moment they
+type its name on their profile.
+
+**The skill gap is asymmetric on purpose.** Supply is this institution's students;
+demand is every live posting from every employer on the platform. That is what
+makes it curriculum advice rather than a report card on one hiring round.
+
+Students who have not been assessed are reported as `notAssessed` and left out of
+every average. Their readiness is unknown, not zero, and the dashboard prints an
+em dash rather than `0%` — a college acting on a fake zero would be acting on
+nothing.
+
+---
+
+## Demo data
+
+`npm run seed` loads the catalogue. `npm run seed:demo` loads a **story**: 22
+students, 3 employers, 12 postings and 31 applications, all reachable through the
+UI with one password.
+
+```bash
+cd server
+npm run seed        # first — the catalogue the demo data points at
+npm run seed:demo   # then — the cohort, postings and pipeline
+```
+
+Both are idempotent and neither ever deletes: users are matched on email,
+profiles on user, postings on owner-plus-title, applications on the unique index.
+Re-running updates in place and reports what it found. There is no `--force` and
+no `dropDatabase`, because these run against whatever `MONGODB_URI` names.
+
+Every account shares the password in `DEMO_PASSWORD` (default `Demo1234`).
+Existing accounts keep whatever password they already had — a seed script has no
+business silently resetting credentials.
+
+| Role | Email | What it shows |
+| --- | --- | --- |
+| `INSTITUTION` | `institution@skillbridge.demo` | The cohort analytics dashboard, with real gaps |
+| `INDUSTRY` | `hiring@northwind.demo` | Postings with ranked applicants at every pipeline stage |
+| `INDUSTRY` | `talent@lumen.demo` | A second employer, so demand is not one company's wishlist |
+| `INDUSTRY` | `careers@sentinel.demo` | A third, including a draft and a closed posting |
+| `ACADEMICIAN` | `academician@skillbridge.demo` | The placeholder dashboard, with role enforcement working |
+| `STUDENT` | `aarav.menon@student.demo` | Persona A — ready: high readiness, verified skills, selected |
+| `STUDENT` | `rohan.iyer@student.demo` | Persona B — solid: good, not exceptional, mid-pipeline |
+| `STUDENT` | `divya.ramesh@student.demo` | Persona C — developing: real gaps against real postings |
+| `STUDENT` | `priya.ranganathan@student.demo` | Persona D — full profile, **no assessment**: readiness unknown |
+| `STUDENT` | `rahul.bhatt@student.demo` | Persona E — empty profile: the first-run experience |
+
+**The cohort is deliberately not excellent.** Readiness runs from 34 to 88 with
+nobody in the Expert band, seven students unassessed, and two students at a
+*different* college so the cohort filter has something to exclude. A demo where
+everyone is employable cannot demonstrate a skill gap, so `seedDemo.js` refuses
+to run if a later edit flattens the spread — that assertion is in
+`validateDemoData()`, and it aborts before the database connection opens.
+
+**The gap is emergent, not asserted.** Students hold HTML, CSS, JavaScript, Git
+and Python; employers ask for Docker, AWS, Kubernetes and system design. The
+Platform Engineer posting exists specifically so the gap table has a top row that
+nobody in the cohort can reach.
+
+**Applications go through the real services.** `seedDemo.js` calls
+`createApplication` and `updateApplicationStatus`, so every match score in the
+demo database was produced by the actual matching engine and every status history
+is one the product itself could have produced. Only two fields are stated rather
+than earned — `readinessScore` and `verified` — because the alternative is sitting
+22 assessments by hand.
+
+Postings are created **active**, applications are seeded, statuses are walked, and
+only then do the draft and closed postings take their final state. That is the
+order reality uses, and `createApplication` rightly refuses a closed or expired
+posting.
+
+---
+
 ## Troubleshooting
 
 | Symptom | Cause and fix |
@@ -999,19 +1247,26 @@ the flows in the PRD and TRD are used instead.
 ## Roadmap
 
 ~~Foundation~~ → ~~Auth & RBAC~~ → ~~Profiles, skills & career goals~~ →
-~~Opportunities~~ → Applications → Assessment engine → Matching & gap analysis →
-Learning programs → Portfolio → Institution analytics → Notifications & polish.
+~~Opportunities~~ → ~~Assessment engine~~ → ~~Career readiness & gap analysis~~ →
+~~Learning recommendations~~ → ~~Matching~~ → ~~Applications~~ →
+~~Candidate ranking~~ → ~~Institution analytics~~ → ~~Demo data~~ →
+Portfolio → Notifications.
 
 Each step ships one complete, working flow before the next begins.
 
-Foundation, Auth & RBAC, student profiles and opportunities are done. The
-`STUDENT` and `INDUSTRY` dashboards are live; the Academician, Institution and
-Admin dashboards still render placeholders — they exist to prove routing and role
-enforcement work, and get their real content in later steps.
+Every flow above is live end to end. A student can register, build a profile, sit
+an assessment, see their readiness and what to study, browse ranked matches with
+the reasoning behind each score, apply, and watch the status history as an
+employer moves them along. An employer can post, see ranked applicants with the
+match score frozen at apply time, and move them through the pipeline. An
+institution can see cohort readiness, the skill gaps against live hiring, and the
+placement pipeline.
 
-Opportunities ships the employer's half and the student's half of Phase 3, and
-stops at the boundary: a student can find a posting and read all of it, but there
-is no way to apply. Applications are the next step, and the schema is shaped to
-receive them — a posting already carries the deadline, the openings count and the
-status an application would need to check, so adding an `Application` model that
-points at an `Opportunity` and a `User` needs no change to what exists.
+The `ACADEMICIAN` and `ADMIN` dashboards still render placeholders. They exist to
+prove routing and role enforcement work, and they are honest about it — each one
+lists what it will contain rather than showing an empty chart.
+
+Two things are deliberately out of scope for the hackathon build: the portfolio
+step, whose fields are already defined on `StudentProfile` so it needs no schema
+migration, and notifications, which need a delivery channel decision rather than
+more code.
