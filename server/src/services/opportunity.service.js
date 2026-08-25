@@ -47,7 +47,7 @@ import {
  * industry's email out of the populated document entirely, so
  * `toPublicObject()` could not leak it even if it tried.
  */
-const POPULATE_REFS = [
+export const POPULATE_REFS = [
   { path: 'industryId', select: 'name' },
   { path: 'requiredSkills.skillId', select: 'name slug category' },
   { path: 'preferredSkills.skillId', select: 'name slug category' },

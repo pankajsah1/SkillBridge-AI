@@ -28,6 +28,11 @@ import {
 } from '../services/studentProfile.service.js';
 import { getReadinessForStudent } from '../services/readiness.service.js';
 import { getRecommendationsForStudent } from '../services/recommendation.service.js';
+import {
+  MATCH_WEIGHTS,
+  getMatchForStudent,
+  getMatchesForStudent,
+} from '../services/matching.service.js';
 
 /**
  * GET /api/v1/students/profile
@@ -201,6 +206,53 @@ export const getRecommendations = asyncHandler(async (req, res) => {
   });
 });
 
+/**
+ * GET /api/v1/students/matches -> 200.
+ *
+ * The student's ranked matches across every live posting. `weights` rides along
+ * so the UI can label the breakdown without a second copy of 70/15/10/5 — one
+ * owner for the weighting, exactly as with every other number in this app.
+ *
+ * `matches: []` with a `reason` for a student who has no profile yet: there is
+ * nothing to match against, which is a first-run state and not a failure.
+ */
+export const getMatches = asyncHandler(async (req, res) => {
+  const { matches, consideredCount, reason } = await getMatchesForStudent({
+    studentId: req.user.id,
+    limit: req.query.limit ? Number(req.query.limit) : undefined,
+  });
+
+  if (reason) {
+    return sendSuccess(res, {
+      message: 'No profile has been created yet.',
+      data: { matches: [], consideredCount: 0, weights: MATCH_WEIGHTS, reason },
+    });
+  }
+
+  return sendSuccess(res, {
+    message: 'Matches computed successfully.',
+    data: { matches, consideredCount, weights: MATCH_WEIGHTS, reason: null },
+  });
+});
+
+/**
+ * GET /api/v1/students/matches/:opportunityId -> 200.
+ *
+ * The breakdown behind one posting. 404 when the opportunity does not exist —
+ * that is a genuine mistake, unlike the empty states above.
+ */
+export const getOpportunityMatch = asyncHandler(async (req, res) => {
+  const { match, opportunity, reason } = await getMatchForStudent({
+    studentId: req.user.id,
+    opportunityId: req.params.opportunityId,
+  });
+
+  return sendSuccess(res, {
+    message: reason ? 'No profile has been created yet.' : 'Match computed successfully.',
+    data: { match, opportunity, weights: MATCH_WEIGHTS, reason },
+  });
+});
+
 export default {
   getProfile,
   createProfile,
@@ -212,4 +264,6 @@ export default {
   deleteSkill,
   getReadiness,
   getRecommendations,
+  getMatches,
+  getOpportunityMatch,
 };

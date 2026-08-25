@@ -34,6 +34,7 @@ import StartAssessment from '../pages/student/StartAssessment.jsx';
 import TakeAssessment from '../pages/student/TakeAssessment.jsx';
 import AssessmentResult from '../pages/student/AssessmentResult.jsx';
 import CareerReadiness from '../pages/student/CareerReadiness.jsx';
+import MatchedOpportunities from '../pages/student/MatchedOpportunities.jsx';
 import IndustryDashboard from '../pages/dashboards/IndustryDashboard.jsx';
 import MyOpportunities from '../pages/industry/MyOpportunities.jsx';
 import OpportunityFormPage from '../pages/industry/OpportunityFormPage.jsx';
@@ -99,6 +100,12 @@ export default function AppRouter() {
             not a route segment, because switching it is a filter rather than
             navigation to a different thing. */}
         <Route path="/student/readiness" element={<CareerReadiness />} />
+
+        {/* Matches is a separate route from /student/opportunities rather than a
+            sort option on it, because the two are different questions: browse is
+            "what exists", this is "what fits me". A student who wants the ranked
+            answer should be able to link straight to it. */}
+        <Route path="/student/matches" element={<MatchedOpportunities />} />
       </Route>
 
       <Route element={<RoleRoute allowedRoles={[ROLES.INDUSTRY]} />}>

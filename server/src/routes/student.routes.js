@@ -29,6 +29,8 @@ import {
   createSkill,
   deleteSkill,
   getProfile,
+  getMatches,
+  getOpportunityMatch,
   getReadiness,
   getRecommendations,
   getSkills,
@@ -93,6 +95,19 @@ router.get(
   validateOptionalObjectIdQuery('careerRoleId'),
   validateOptionalLimitQuery({ min: 1, max: 10 }),
   getRecommendations,
+);
+
+// ------------------------------------------------------------------- matching
+// Student-side matching: the ranked list, and the breakdown behind one posting.
+// It lives on this mount rather than under /opportunities because the answer is
+// about *this* student — the owner is `req.user.id`, so a student cannot ask for
+// anyone else's matches. Read-only and stored nowhere, like readiness above.
+router.get('/matches', validateOptionalLimitQuery({ min: 1, max: 20 }), getMatches);
+
+router.get(
+  '/matches/:opportunityId',
+  validateObjectIdParam('opportunityId'),
+  getOpportunityMatch,
 );
 
 export default router;

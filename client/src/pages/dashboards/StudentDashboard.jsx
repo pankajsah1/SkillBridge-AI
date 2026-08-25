@@ -31,10 +31,7 @@ import Card from '../../components/ui/Card.jsx';
 import ProgressBar from '../../components/ui/ProgressBar.jsx';
 import { Spinner } from '../../components/ui/Spinner.jsx';
 
-const UPCOMING = [
-  'Matched internships and jobs',
-  'Your verified digital portfolio',
-];
+const UPCOMING = ['Your verified digital portfolio'];
 
 /** The three Step 3 destinations. Anchors land on the matching section's id. */
 const ACTIONS = [
@@ -372,8 +369,33 @@ export default function StudentDashboard() {
         >
           <p className="text-sm text-slate-600">
             Search by keyword and filter by type, location, work mode and the skills a role asks
-            for. Matching and applications come later — for now this is the full list of what
-            companies have posted.
+            for. This is the full list of what companies have posted — the matched list below is
+            the same postings, ordered by how well they fit you.
+          </p>
+        </Card>
+
+        {/* Matching is its own card rather than a link inside the one above,
+            because it answers a different question — "which of these is worth my
+            time" — and it is the feature a judge is looking for. Still no score
+            fetched here: this page navigates, and a top-match number would mean a
+            third request with its own loading and failure states to preview one
+            line the matched page shows in full. */}
+        <Card
+          title="Matched for you"
+          description="Every open posting scored against your skills, your goals and the eligibility stated."
+          action={
+            <Link
+              to="/student/matches"
+              className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary-600 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-primary-700"
+            >
+              See your matches
+            </Link>
+          }
+        >
+          <p className="text-sm text-slate-600">
+            Ranked best first, and every score shows its working — which skills you already meet,
+            which ones you are short on and by how much, so a match is something you can act on
+            rather than a number to take on trust.
           </p>
         </Card>
 

@@ -6,11 +6,17 @@
  * The page says plainly that applying is not open yet — which is the honest version
  * of the same information and costs a judge no clicks to discover.
  *
- * NO MATCH PERCENTAGE, NO SKILL GAP, NO "YOU HAVE 3 OF 5 SKILLS". The student's own
- * skills are one request away and the arithmetic is trivial, which is exactly why it
- * is worth being explicit: a number invented in the browser would be read as the
- * portal's verified judgement of their fit, and the matching engine that will
- * actually produce that number is a later phase with a different definition.
+ * THE MATCH SCORE IS THE SERVER'S, AND IT SHOWS ITS WORKING. Step 4 deliberately
+ * left this page without a fit number, because a percentage invented in the
+ * browser would be read as the portal's verified judgement. Phase 5 is the engine
+ * that number was waiting for: GET /students/matches/:id returns the score, the
+ * four weighted parts behind it and the sentences that explain them, and this page
+ * renders them without recomputing anything.
+ *
+ * A MISSING MATCH IS NOT AN ERROR HERE. The breakdown fails quietly — the posting
+ * is the page, and an error banner over a perfectly readable job description
+ * because a secondary request failed would cost the student more than it tells
+ * them.
  *
  * A CLOSED OR EXPIRED POSTING RENDERS RATHER THAN 404s. The API returns it on
  * purpose — a bookmark or a shared link deserves "this closed on 12 August" over a
@@ -19,8 +25,11 @@
  * its owner, which this page shows as-is.
  */
 
-import { useParams } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { Link, useParams } from 'react-router-dom';
 
+import { fetchOpportunityMatch } from '../../api/matching.api.js';
+import MatchBreakdown from '../../components/student/MatchBreakdown.jsx';
 import DashboardLayout from '../../components/layout/DashboardLayout.jsx';
 import Alert from '../../components/ui/Alert.jsx';
 import BackLink from '../../components/ui/BackLink.jsx';
@@ -111,6 +120,37 @@ function SkillTag({ entry }) {
 export default function OpportunityDetails() {
   const { id } = useParams();
   const { opportunity, isLoading, loadError, reload } = useOpportunity(id);
+
+  /**
+   * The match breakdown for this posting.
+   *
+   * Its own request rather than part of `useOpportunity`, because the two answer
+   * different questions: the posting is public to any signed-in viewer, the match
+   * is about one student. Keeping them separate is also what lets this one fail
+   * without taking the page down.
+   */
+  const [match, setMatch] = useState(null);
+  const [isLoadingMatch, setIsLoadingMatch] = useState(true);
+
+  useEffect(() => {
+    let isActive = true;
+    setIsLoadingMatch(true);
+
+    (async () => {
+      try {
+        const result = await fetchOpportunityMatch(id);
+        if (isActive) setMatch(result.match);
+      } catch {
+        if (isActive) setMatch(null);
+      } finally {
+        if (isActive) setIsLoadingMatch(false);
+      }
+    })();
+
+    return () => {
+      isActive = false;
+    };
+  }, [id]);
 
   if (isLoading) {
     return (
@@ -218,6 +258,22 @@ export default function OpportunityDetails() {
             </Fact>
           </dl>
         </Card>
+
+        {/* Directly under the facts, above the description: "does this fit me?" is
+            the question a student came here with, and the answer should not be
+            below the fold. */}
+        <MatchBreakdown
+          match={match}
+          isLoading={isLoadingMatch}
+          action={
+            <Link
+              to="/student/matches"
+              className="text-sm font-medium text-primary-700 hover:text-primary-800"
+            >
+              All your matches →
+            </Link>
+          }
+        />
 
         <Card title="About this opportunity">
           {/* whitespace-pre-line so the paragraph breaks the employer typed survive.
