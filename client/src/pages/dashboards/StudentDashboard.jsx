@@ -11,6 +11,10 @@
  *
  * The completion number comes from the same GET /students/profile the profile
  * page uses, through the same hook. Nothing is recomputed here.
+ *
+ * Step 4 adds one card — the way into opportunity browsing — and changes nothing
+ * else. The profile, career-goal and skills flow is shipped and tested, and
+ * reshuffling it to make room for a new link would be risk with no benefit.
  */
 
 import { Link } from 'react-router-dom';
@@ -139,6 +143,30 @@ export default function StudentDashboard() {
               </Link>
             ))}
           </div>
+        </Card>
+
+        {/* Step 4 adds exactly one thing to this dashboard: a way to reach the
+            opportunity list. Deliberately no count of what is open — that would mean
+            a second request on a page whose job is navigation, with its own loading
+            and failure states, to render a number the list itself shows. His brief
+            asks for "only enough to navigate to opportunity browsing". */}
+        <Card
+          title="Opportunities"
+          description="Internships, entry-level jobs, apprenticeships and live projects that are open now."
+          action={
+            <Link
+              to="/student/opportunities"
+              className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary-600 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-primary-700"
+            >
+              Browse opportunities
+            </Link>
+          }
+        >
+          <p className="text-sm text-slate-600">
+            Search by keyword and filter by type, location, work mode and the skills a role asks
+            for. Matching and applications come later — for now this is the full list of what
+            companies have posted.
+          </p>
         </Card>
 
         <DashboardPlaceholder upcoming={UPCOMING} />

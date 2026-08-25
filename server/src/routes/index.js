@@ -11,6 +11,7 @@ import authRoutes from './auth.routes.js';
 import healthRoutes from './health.routes.js';
 import studentRoutes from './student.routes.js';
 import { careerRoleRoutes, skillRoutes } from './catalogue.routes.js';
+import { industryRoutes, opportunityRoutes } from './opportunity.routes.js';
 
 const router = Router();
 
@@ -21,8 +22,10 @@ const mounts = [
   ['/students', studentRoutes],
   ['/skills', skillRoutes],
   ['/career-roles', careerRoleRoutes],
-  // Later steps add: /industries, /opportunities, /applications,
-  //                  /assessments, /recommendations, /analytics
+  ['/opportunities', opportunityRoutes],
+  ['/industry', industryRoutes],
+  // Later steps add: /applications, /assessments,
+  //                  /recommendations, /analytics
 ];
 
 for (const [mountPath, subRouter] of mounts) {

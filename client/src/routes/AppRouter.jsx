@@ -28,7 +28,11 @@ import NotFound from '../pages/NotFound.jsx';
 
 import StudentDashboard from '../pages/dashboards/StudentDashboard.jsx';
 import StudentProfile from '../pages/student/StudentProfile.jsx';
+import BrowseOpportunities from '../pages/student/BrowseOpportunities.jsx';
+import OpportunityDetails from '../pages/student/OpportunityDetails.jsx';
 import IndustryDashboard from '../pages/dashboards/IndustryDashboard.jsx';
+import MyOpportunities from '../pages/industry/MyOpportunities.jsx';
+import OpportunityFormPage from '../pages/industry/OpportunityFormPage.jsx';
 import AcademicianDashboard from '../pages/dashboards/AcademicianDashboard.jsx';
 import InstitutionDashboard from '../pages/dashboards/InstitutionDashboard.jsx';
 import AdminDashboard from '../pages/dashboards/AdminDashboard.jsx';
@@ -71,10 +75,21 @@ export default function AppRouter() {
       <Route element={<RoleRoute allowedRoles={[ROLES.STUDENT]} />}>
         <Route path="/student" element={<StudentDashboard />} />
         <Route path="/student/profile" element={<StudentProfile />} />
+        {/* Discovery is student-scoped rather than a route both roles share.
+            A shared detail page would put a "Back to opportunities" link in front
+            of an industry user that lands them on /unauthorized — so the employer
+            reaches their own postings through /industry/opportunities instead. */}
+        <Route path="/student/opportunities" element={<BrowseOpportunities />} />
+        <Route path="/student/opportunities/:id" element={<OpportunityDetails />} />
       </Route>
 
       <Route element={<RoleRoute allowedRoles={[ROLES.INDUSTRY]} />}>
         <Route path="/industry" element={<IndustryDashboard />} />
+        <Route path="/industry/opportunities" element={<MyOpportunities />} />
+        {/* One page, two routes: the presence of :id is what makes it an edit.
+            `new` is listed first so it can never be read as an id. */}
+        <Route path="/industry/opportunities/new" element={<OpportunityFormPage />} />
+        <Route path="/industry/opportunities/:id/edit" element={<OpportunityFormPage />} />
       </Route>
 
       <Route element={<RoleRoute allowedRoles={[ROLES.ACADEMICIAN]} />}>
