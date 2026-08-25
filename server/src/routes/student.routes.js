@@ -30,6 +30,7 @@ import {
   deleteSkill,
   getProfile,
   getReadiness,
+  getRecommendations,
   getSkills,
   updateCareerGoals,
   updateProfile,
@@ -43,6 +44,7 @@ import {
   validateCareerGoals,
   validateCreateProfile,
   validateObjectIdParam,
+  validateOptionalLimitQuery,
   validateOptionalObjectIdQuery,
   validateUpdateProfile,
   validateUpdateSkill,
@@ -82,5 +84,15 @@ router
 // It lives on this mount rather than a new one because it is the same owner
 // (`req.user.id`) behind the same student-only guard applied above.
 router.get('/readiness', validateOptionalObjectIdQuery('careerRoleId'), getReadiness);
+
+// ------------------------------------------------------------ recommendations
+// What to learn next, derived from the same gaps /readiness reports. Also
+// read-only and stored nowhere, so it cannot drift from the readiness numbers.
+router.get(
+  '/recommendations',
+  validateOptionalObjectIdQuery('careerRoleId'),
+  validateOptionalLimitQuery({ min: 1, max: 10 }),
+  getRecommendations,
+);
 
 export default router;

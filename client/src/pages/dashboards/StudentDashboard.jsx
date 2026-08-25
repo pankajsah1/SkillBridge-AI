@@ -33,7 +33,6 @@ import { Spinner } from '../../components/ui/Spinner.jsx';
 
 const UPCOMING = [
   'Matched internships and jobs',
-  'Recommended learning programmes',
   'Your verified digital portfolio',
 ];
 
@@ -328,13 +327,22 @@ export default function StudentDashboard() {
               {/* The single most useful sentence this card can carry: not the
                   score, but which skill to work on next. */}
               {readiness.skillGaps.length > 0 ? (
-                <p className="text-sm text-slate-600">
-                  Biggest win right now:{' '}
-                  <span className="font-medium text-slate-900">
-                    {readiness.skillGaps[0].skillName}
-                  </span>{' '}
-                  — {readiness.skillGaps[0].gap} points below what the role needs.
-                </p>
+                <>
+                  <p className="text-sm text-slate-600">
+                    Biggest win right now:{' '}
+                    <span className="font-medium text-slate-900">
+                      {readiness.skillGaps[0].skillName}
+                    </span>{' '}
+                    — {readiness.skillGaps[0].gap} points below what the role needs.
+                  </p>
+
+                  <Link
+                    to="/student/readiness"
+                    className="inline-flex text-sm font-medium text-primary-700 hover:text-primary-800"
+                  >
+                    View learning plan →
+                  </Link>
+                </>
               ) : null}
             </div>
           ) : (

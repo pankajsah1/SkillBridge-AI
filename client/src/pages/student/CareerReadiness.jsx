@@ -26,7 +26,8 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 
 import { fetchCareerRoles } from '../../api/catalogue.api.js';
-import { fetchMyReadiness } from '../../api/studentProfile.api.js';
+import { fetchMyReadiness, fetchMyRecommendations } from '../../api/studentProfile.api.js';
+import RecommendedLearning from '../../components/student/RecommendedLearning.jsx';
 import DashboardLayout from '../../components/layout/DashboardLayout.jsx';
 import Alert from '../../components/ui/Alert.jsx';
 import BackLink from '../../components/ui/BackLink.jsx';
@@ -154,6 +155,16 @@ export default function CareerReadiness() {
 
   const [roles, setRoles] = useState([]);
 
+  /**
+   * Recommendations, loaded alongside readiness rather than derived from it.
+   *
+   * They could be computed here from `readiness.skillGaps` — the inputs are all
+   * present — but then the ranking would exist twice, in two languages, and the
+   * demo would eventually show a different order in the two places. One owner.
+   */
+  const [recommendations, setRecommendations] = useState([]);
+  const [isLoadingRecommendations, setIsLoadingRecommendations] = useState(true);
+
   const load = useCallback(async (roleId) => {
     setIsLoading(true);
     setLoadError(null);
@@ -171,9 +182,28 @@ export default function CareerReadiness() {
     }
   }, []);
 
+  /**
+   * Recommendations fail quietly. Readiness is the page; a missing "what to
+   * learn" list is a smaller loss than an error banner over a working gap
+   * analysis, and the section renders its own empty state.
+   */
+  const loadRecommendations = useCallback(async (roleId) => {
+    setIsLoadingRecommendations(true);
+
+    try {
+      const result = await fetchMyRecommendations({ careerRoleId: roleId || undefined });
+      setRecommendations(result.recommendations);
+    } catch {
+      setRecommendations([]);
+    } finally {
+      setIsLoadingRecommendations(false);
+    }
+  }, []);
+
   useEffect(() => {
     load(selectedRoleId);
-  }, [load, selectedRoleId]);
+    loadRecommendations(selectedRoleId);
+  }, [load, loadRecommendations, selectedRoleId]);
 
   /**
    * The role list is only for the picker, so a failure is swallowed: the page
@@ -367,6 +397,22 @@ export default function CareerReadiness() {
                 </div>
               )}
             </Card>
+
+            {/* Directly after the gaps, because it is the answer to them: the
+                list above says what is missing, this one says what to do. */}
+            <RecommendedLearning
+              recommendations={recommendations}
+              isLoading={isLoadingRecommendations}
+              roleTitle={careerRole?.title}
+              action={
+                <Link
+                  to="/student/opportunities"
+                  className="text-sm font-medium text-primary-700 hover:text-primary-800"
+                >
+                  See what employers want →
+                </Link>
+              }
+            />
 
             <Card
               title="Already at the level"

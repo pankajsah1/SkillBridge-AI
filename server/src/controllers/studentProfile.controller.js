@@ -27,6 +27,7 @@ import {
   updateSkillLevel,
 } from '../services/studentProfile.service.js';
 import { getReadinessForStudent } from '../services/readiness.service.js';
+import { getRecommendationsForStudent } from '../services/recommendation.service.js';
 
 /**
  * GET /api/v1/students/profile
@@ -169,6 +170,37 @@ export const getReadiness = asyncHandler(async (req, res) => {
   });
 });
 
+/**
+ * GET /api/v1/students/recommendations?careerRoleId=...&limit=...
+ *
+ * What to learn next, ranked deterministically from the same gaps the readiness
+ * endpoint reports. Same optional role param, same two empty states, same
+ * `{ reason }` contract — a client that can render one can render the other.
+ */
+export const getRecommendations = asyncHandler(async (req, res) => {
+  const { recommendations, careerRole, readinessScore, reason } =
+    await getRecommendationsForStudent({
+      studentId: req.user.id,
+      careerRoleId: req.query.careerRoleId,
+      limit: req.query.limit ? Number(req.query.limit) : undefined,
+    });
+
+  if (reason) {
+    return sendSuccess(res, {
+      message:
+        reason === 'no-profile'
+          ? 'No profile has been created yet.'
+          : 'No career goal has been set yet.',
+      data: { recommendations: [], careerRole: null, readinessScore: null, reason },
+    });
+  }
+
+  return sendSuccess(res, {
+    message: 'Recommendations generated successfully.',
+    data: { recommendations, careerRole, readinessScore, reason: null },
+  });
+});
+
 export default {
   getProfile,
   createProfile,
@@ -179,4 +211,5 @@ export default {
   updateSkill,
   deleteSkill,
   getReadiness,
+  getRecommendations,
 };

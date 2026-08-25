@@ -415,6 +415,31 @@ export const validateOptionalObjectIdQuery = (queryName) => (req, _res, next) =>
   return next();
 };
 
+/**
+ * Validates an optional `?limit=` bounded to a small range.
+ *
+ * Bounded rather than merely numeric: an unbounded limit on a derived list is a
+ * way to ask the server to do arbitrary work, and no caller needs more than the
+ * handful of recommendations a student can act on.
+ */
+export const validateOptionalLimitQuery = ({ min = 1, max = 20 } = {}) => (req, _res, next) => {
+  const value = req.query.limit;
+
+  if (value === undefined || value === '') return next();
+
+  const parsed = Number(value);
+
+  if (!Number.isInteger(parsed) || parsed < min || parsed > max) {
+    return next(
+      AppError.badRequest('Validation failed', [
+        { field: 'limit', message: `Limit must be a whole number between ${min} and ${max}.` },
+      ]),
+    );
+  }
+
+  return next();
+};
+
 /** Identical adapter to auth.validator.js, so the 400 shape cannot drift. */
 const toMiddleware = (validator) => (req, _res, next) => {
   const errors = validator(req.body);

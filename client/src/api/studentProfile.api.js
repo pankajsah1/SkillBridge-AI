@@ -148,6 +148,36 @@ export const fetchMyReadiness = async (careerRoleId) => {
   return { readiness, careerRole, reason };
 };
 
+/**
+ * GET /students/recommendations
+ *
+ * Ranked skills to learn next, derived from the same gaps `fetchMyReadiness`
+ * reports — so the two can never disagree about the same student. Same two
+ * empty states, reported the same way through `reason`.
+ *
+ * @param {{careerRoleId?: string, limit?: number}} [options]
+ * @returns {Promise<{recommendations: Array<object>, careerRole: object|null,
+ *                    readinessScore: number|null, reason: string|null}>}
+ */
+export const fetchMyRecommendations = async ({ careerRoleId, limit } = {}) => {
+  const params = {};
+  if (careerRoleId) params.careerRoleId = careerRoleId;
+  if (limit) params.limit = limit;
+
+  const response = await axiosInstance.get('/students/recommendations', {
+    params: Object.keys(params).length > 0 ? params : undefined,
+  });
+
+  const {
+    recommendations = [],
+    careerRole = null,
+    readinessScore = null,
+    reason = null,
+  } = response.data.data;
+
+  return { recommendations, careerRole, readinessScore, reason };
+};
+
 export default {
   fetchMyProfile,
   createMyProfile,
@@ -158,4 +188,5 @@ export default {
   updateMySkillLevel,
   removeMySkill,
   fetchMyReadiness,
+  fetchMyRecommendations,
 };
