@@ -17,8 +17,10 @@
  * reshuffling it to make room for a new link would be risk with no benefit.
  */
 
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 
+import { fetchLatestAssessment } from '../../api/assessment.api.js';
 import useStudentProfile from '../../hooks/useStudentProfile.js';
 import DashboardLayout from '../../components/layout/DashboardLayout.jsx';
 import DashboardPlaceholder from '../../components/dashboard/DashboardPlaceholder.jsx';
@@ -29,7 +31,6 @@ import ProgressBar from '../../components/ui/ProgressBar.jsx';
 import { Spinner } from '../../components/ui/Spinner.jsx';
 
 const UPCOMING = [
-  'Skill assessments that score what you have added here',
   'Gap analysis against the career roles you want',
   'Matched internships and jobs',
   'Recommended learning programmes',
@@ -57,6 +58,36 @@ const ACTIONS = [
 
 export default function StudentDashboard() {
   const { profile, isFirstVisit, isLoading, loadError } = useStudentProfile();
+
+  /**
+   * The last submitted result, or null for a student who has not been assessed.
+   *
+   * A failure here is deliberately silent: this card is one of several on a
+   * navigation page, and an error banner about an assessment the student may
+   * never have taken would be louder than the fact deserves. The card falls back
+   * to its "not assessed yet" state, which is also what the button then offers.
+   */
+  const [latest, setLatest] = useState(null);
+  const [isLoadingLatest, setIsLoadingLatest] = useState(true);
+
+  useEffect(() => {
+    let isActive = true;
+
+    (async () => {
+      try {
+        const loaded = await fetchLatestAssessment();
+        if (isActive) setLatest(loaded);
+      } catch {
+        if (isActive) setLatest(null);
+      } finally {
+        if (isActive) setIsLoadingLatest(false);
+      }
+    })();
+
+    return () => {
+      isActive = false;
+    };
+  }, []);
 
   const completion = profile?.profileCompletion ?? 0;
   const skillCount = profile?.skills?.length ?? 0;
@@ -143,6 +174,70 @@ export default function StudentDashboard() {
               </Link>
             ))}
           </div>
+        </Card>
+
+        {/* Assessment sits above opportunities because it is what makes the rest
+            of the portal work: the scores it produces are what matching, gap
+            analysis and recommendations all read. */}
+        <Card
+          title="Skill assessment"
+          description={
+            latest
+              ? 'Your measured levels, from questions rather than self-estimates.'
+              : 'Ten questions. Your answers become verified skill levels on your profile.'
+          }
+          action={
+            <Link
+              to="/student/assessment"
+              className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary-600 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-primary-700"
+            >
+              {latest ? 'Take it again' : 'Start assessment'}
+            </Link>
+          }
+        >
+          {isLoadingLatest ? (
+            <div className="flex items-center gap-2.5 py-1 text-sm text-slate-500">
+              <Spinner size="sm" />
+              Checking your last assessment…
+            </div>
+          ) : latest ? (
+            <div className="space-y-4">
+              <div>
+                <div className="flex items-baseline justify-between gap-2">
+                  <span className="text-sm text-slate-600">
+                    {latest.careerRoleTitle
+                      ? `Assessed for ${latest.careerRoleTitle}`
+                      : 'Broad skill assessment'}
+                  </span>
+                  <span className="text-sm font-semibold tabular-nums text-slate-900">
+                    {latest.overallScore}%
+                  </span>
+                </div>
+                <ProgressBar
+                  value={latest.overallScore}
+                  className="mt-2"
+                  barClassName={latest.overallScore >= 60 ? 'bg-success-500' : 'bg-warning-500'}
+                />
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge variant="primary">
+                  {latest.skillScores?.length ?? 0} skills scored
+                </Badge>
+                <Link
+                  to={`/student/assessment/${latest.id}/result`}
+                  className="text-sm font-medium text-primary-700 hover:text-primary-800"
+                >
+                  See the full result →
+                </Link>
+              </div>
+            </div>
+          ) : (
+            <p className="text-sm text-slate-600">
+              You have not been assessed yet. The questions are picked from the skills your target
+              role needs, so the result tells you where you actually stand rather than how you feel.
+            </p>
+          )}
         </Card>
 
         {/* Step 4 adds exactly one thing to this dashboard: a way to reach the

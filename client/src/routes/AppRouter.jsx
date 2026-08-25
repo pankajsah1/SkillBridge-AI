@@ -30,6 +30,9 @@ import StudentDashboard from '../pages/dashboards/StudentDashboard.jsx';
 import StudentProfile from '../pages/student/StudentProfile.jsx';
 import BrowseOpportunities from '../pages/student/BrowseOpportunities.jsx';
 import OpportunityDetails from '../pages/student/OpportunityDetails.jsx';
+import StartAssessment from '../pages/student/StartAssessment.jsx';
+import TakeAssessment from '../pages/student/TakeAssessment.jsx';
+import AssessmentResult from '../pages/student/AssessmentResult.jsx';
 import IndustryDashboard from '../pages/dashboards/IndustryDashboard.jsx';
 import MyOpportunities from '../pages/industry/MyOpportunities.jsx';
 import OpportunityFormPage from '../pages/industry/OpportunityFormPage.jsx';
@@ -81,6 +84,14 @@ export default function AppRouter() {
             reaches their own postings through /industry/opportunities instead. */}
         <Route path="/student/opportunities" element={<BrowseOpportunities />} />
         <Route path="/student/opportunities/:id" element={<OpportunityDetails />} />
+
+        {/* Assessment is three pages because it is three decisions: what to be
+            assessed on, answering, and reading the result. `/result` is listed
+            after the bare :assessmentId route but cannot collide with it — the
+            extra segment is what distinguishes them. */}
+        <Route path="/student/assessment" element={<StartAssessment />} />
+        <Route path="/student/assessment/:assessmentId" element={<TakeAssessment />} />
+        <Route path="/student/assessment/:assessmentId/result" element={<AssessmentResult />} />
       </Route>
 
       <Route element={<RoleRoute allowedRoles={[ROLES.INDUSTRY]} />}>
