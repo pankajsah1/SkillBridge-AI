@@ -56,6 +56,7 @@ import {
   DEMO_INSTITUTION,
   DEMO_OPPORTUNITIES,
   DEMO_PASSWORD,
+  DEMO_PORTFOLIOS,
   DEMO_STUDENTS,
   OTHER_INSTITUTION_NAME,
 } from '../src/data/demo.seed.js';
@@ -197,6 +198,75 @@ export const validateDemoData = () => {
   if (!DEMO_STUDENTS.some((student) => student.otherInstitution)) {
     warnings.push(
       'No student belongs to another institution, so the cohort filter has nothing to exclude.',
+    );
+  }
+
+  // --- portfolios ---------------------------------------------------------
+  /* Checked offline for the same reason skill slugs are: a portfolio keyed to a
+     misspelt email is not an error at runtime, it is a student who quietly has no
+     projects, and the seed would report success. */
+  const PORTFOLIO_ARRAYS = ['projects', 'certifications', 'achievements', 'experiences'];
+
+  Object.entries(DEMO_PORTFOLIOS).forEach(([email, entry]) => {
+    if (!emails.has(email)) {
+      errors.push(`A portfolio is keyed to "${email}", who is not in DEMO_STUDENTS.`);
+    }
+
+    Object.keys(entry).forEach((key) => {
+      if (!PORTFOLIO_ARRAYS.includes(key)) {
+        errors.push(`${email} has a portfolio section "${key}", which is not a profile array.`);
+      }
+    });
+
+    PORTFOLIO_ARRAYS.forEach((key) => {
+      (entry[key] ?? []).forEach((record) => {
+        /* Only the offsets are checked here. Titles, lengths and enums are the schema's
+           job, and it runs on every save — duplicating it here would just be a second
+           place for the limits to be wrong. */
+        Object.entries(record).forEach(([field, value]) => {
+          if (!/Months(Ago|Ahead)$/.test(field)) return;
+
+          if (value === null) return;
+          if (!Number.isInteger(value) || value < 0) {
+            errors.push(`${email} ${key}: ${field} is ${value}; must be a positive integer or null.`);
+          }
+        });
+
+        const { startMonthsAgo: start, endMonthsAgo: end } = record;
+        if (Number.isInteger(start) && Number.isInteger(end) && end > start) {
+          errors.push(
+            `${email} ${key}: "${record.title ?? record.role}" ends ${end} months ago but ` +
+              `starts ${start} months ago, so it finishes before it begins.`,
+          );
+        }
+
+        if ((record.isOngoing || record.isCurrent) && Number.isInteger(end)) {
+          errors.push(
+            `${email} ${key}: "${record.title ?? record.role}" is marked ongoing and also ` +
+              'has an end date.',
+          );
+        }
+
+        if (record.verificationStatus) {
+          errors.push(
+            `${email} ${key}: "${record.title ?? record.role}" sets verificationStatus. ` +
+              'Nothing in this build verifies a portfolio record, so the seed must not claim one.',
+          );
+        }
+      });
+    });
+  });
+
+  const withPortfolios = Object.keys(DEMO_PORTFOLIOS).filter((email) => emails.has(email));
+
+  if (withPortfolios.length === 0) {
+    warnings.push('No student has portfolio records, so the completion score has nothing to show.');
+  }
+
+  if (withPortfolios.length === DEMO_STUDENTS.length) {
+    warnings.push(
+      'Every student has a portfolio, so the empty states never appear and the completion ' +
+        'score cannot tell anyone apart.',
     );
   }
 
@@ -378,10 +448,88 @@ const loadCareerRoleIds = async () => {
 };
 
 /**
+ * A date that many months either side of the seed run, at midday on the 15th.
+ *
+ * Month precision, because that is all a portfolio card renders ("Mar 2025") and all a
+ * student reliably remembers about when a project started. Day 15 rather than the real
+ * day of the month sidesteps `setMonth`'s end-of-month overflow — 31 January minus one
+ * month is 3 March, which would print the wrong month — and midday keeps the date on the
+ * intended day whichever timezone the seed runs in.
+ */
+const monthsFromNow = (months) => {
+  const now = new Date();
+  return new Date(now.getFullYear(), now.getMonth() + months, 15, 12, 0, 0);
+};
+
+/**
+ * Which offset key becomes which date field, and in which direction.
+ *
+ * The seed states offsets rather than dates so the demo does not age (see the header of
+ * demo.seed.js). This table is the whole translation; the assertion below it is what
+ * stops a new offset key from being copied through as a literal field and silently
+ * dropped by the schema.
+ */
+const DATE_OFFSETS = Object.freeze({
+  startMonthsAgo: ['startDate', -1],
+  endMonthsAgo: ['endDate', -1],
+  issueMonthsAgo: ['issueDate', -1],
+  dateMonthsAgo: ['date', -1],
+  expiryMonthsAhead: ['expiryDate', 1],
+});
+
+/** One portfolio record, with its month offsets resolved to real dates. */
+const resolveRecordDates = (record) => {
+  const resolved = {};
+
+  for (const [key, value] of Object.entries(record)) {
+    const offset = DATE_OFFSETS[key];
+
+    if (!offset) {
+      if (/Months(Ago|Ahead)$/.test(key)) {
+        throw new Error(`demo.seed.js uses an unregistered date offset: ${key}`);
+      }
+      resolved[key] = value;
+      continue;
+    }
+
+    const [field, direction] = offset;
+    /* null is a real answer — an ongoing project has no end date — and must stay null
+       rather than becoming "now". */
+    resolved[field] = value === null || value === undefined ? null : monthsFromNow(direction * value);
+  }
+
+  return resolved;
+};
+
+/**
+ * The four portfolio arrays for one student, or four empty arrays.
+ *
+ * `verificationStatus` is never set: the schema defaults every record to `pending`, and
+ * pending is the truth because nothing in this build verifies a portfolio record. No
+ * resume either — a resume is a stored file, and there are none in a fresh clone.
+ */
+const buildPortfolio = (email) => {
+  const entry = DEMO_PORTFOLIOS[email] ?? {};
+
+  return {
+    projects: (entry.projects ?? []).map(resolveRecordDates),
+    certifications: (entry.certifications ?? []).map(resolveRecordDates),
+    achievements: (entry.achievements ?? []).map(resolveRecordDates),
+    experiences: (entry.experiences ?? []).map(resolveRecordDates),
+  };
+};
+
+/**
  * Writes one student's profile.
  *
  * `recomputeCompletion()` is called rather than assigned, so the completion figure the
  * dashboard averages is the model's own arithmetic and not a number invented here.
+ *
+ * The portfolio arrays are set for EVERY student, empty ones included, which makes a
+ * re-seed a reset rather than an append: records a demo user added through the UI are
+ * replaced by what demo.seed.js says. That is the right behaviour for a seed and the
+ * same thing already happens to skills and interests, but it is worth knowing before
+ * demonstrating an upload and then re-seeding.
  */
 const upsertProfile = async (student, user, skillIds, roleIds, stats) => {
   const skills = (student.skills ?? []).map(([slug, level, verified]) => ({
@@ -400,6 +548,7 @@ const upsertProfile = async (student, user, skillIds, roleIds, stats) => {
 
   const fields = {
     headline: student.headline ?? '',
+    bio: student.bio ?? '',
     institutionName: student.otherInstitution ? OTHER_INSTITUTION_NAME : DEMO_INSTITUTION.name,
     degree: student.degree ?? '',
     branch: student.branch ?? '',
@@ -412,6 +561,7 @@ const upsertProfile = async (student, user, skillIds, roleIds, stats) => {
     skills,
     /* Stated, not computed. See the header. */
     readinessScore: student.readiness,
+    ...buildPortfolio(student.email),
   };
 
   const existing = await StudentProfile.findOne({ userId: user._id });
@@ -672,17 +822,50 @@ const run = async () => {
 
     // --- profiles ---------------------------------------------------------
     const profileStats = { created: 0, updated: 0 };
+    const portfolioProfiles = [];
+
     for (const student of DEMO_STUDENTS) {
-      await upsertProfile(
+      const profile = await upsertProfile(
         student,
         studentsByEmail.get(student.email),
         skillIds,
         roleIds,
         profileStats,
       );
+
+      if (DEMO_PORTFOLIOS[student.email]) portfolioProfiles.push([student, profile]);
     }
 
     console.log(summarise('Profiles', profileStats));
+
+    /* The completion figures are read back off the saved documents rather than restated
+       here, so this line is the model's own arithmetic on what actually landed in the
+       database. If a portfolio does not score what demo.seed.js says it should, this is
+       where it becomes obvious instead of during the demo. */
+    if (portfolioProfiles.length > 0) {
+      const records = portfolioProfiles.reduce(
+        (total, [, profile]) =>
+          total +
+          profile.projects.length +
+          profile.certifications.length +
+          profile.achievements.length +
+          profile.experiences.length,
+        0,
+      );
+
+      console.log(
+        `      ${records} portfolio records across ${portfolioProfiles.length} students, ` +
+          'no resumes and no documents (there are no files in a fresh clone)',
+      );
+      console.log(
+        `      completion  ${portfolioProfiles
+          .map(
+            ([student, profile]) =>
+              `${student.name.split(' ')[0]} ${profile.computePortfolioCompletion().completionPercentage}%`,
+          )
+          .join('  ')}`,
+      );
+    }
 
     // --- postings ---------------------------------------------------------
     const postingStats = { created: 0, updated: 0 };

@@ -38,6 +38,27 @@ import {
   updateProfile,
   updateSkill,
 } from '../controllers/studentProfile.controller.js';
+import {
+  createAchievement,
+  createCertification,
+  createExperience,
+  createProject,
+  deleteAchievement,
+  deleteCertification,
+  deleteEntryDocument,
+  deleteExperience,
+  deleteProject,
+  deleteResume,
+  downloadDocument,
+  getCompletion,
+  getPortfolio,
+  patchAchievement,
+  patchCertification,
+  patchExperience,
+  patchProject,
+  uploadEntryDocument,
+  uploadResume,
+} from '../controllers/portfolio.controller.js';
 import { authenticate } from '../middleware/authMiddleware.js';
 import { allowRoles } from '../middleware/roleMiddleware.js';
 import { ROLES } from '../constants/roles.js';
@@ -51,6 +72,18 @@ import {
   validateUpdateProfile,
   validateUpdateSkill,
 } from '../validators/studentProfile.validator.js';
+import {
+  validateCreateAchievement,
+  validateCreateCertification,
+  validateCreateExperience,
+  validateCreateProject,
+  validateDocumentUpload,
+  validateStoredFileNameParam,
+  validateUpdateAchievement,
+  validateUpdateCertification,
+  validateUpdateExperience,
+  validateUpdateProject,
+} from '../validators/portfolio.validator.js';
 
 const router = Router();
 
@@ -109,5 +142,91 @@ router.get(
   validateObjectIdParam('opportunityId'),
   getOpportunityMatch,
 );
+
+// ------------------------------------------------------------------ portfolio
+// The digital portfolio: resume, projects, certifications, achievements,
+// experience and the deterministic completion score.
+//
+// Mounted here rather than as a new top-level `/portfolio` router for one
+// concrete reason: it is the same owner behind the same student-only guard
+// applied at the top of this file. A separate mount would need its own
+// `authenticate` + `allowRoles` pair, and a second copy of a security boundary is
+// a second place for it to be wrong.
+//
+// Middleware order is unchanged and not optional:
+//   authenticate -> allowRoles(STUDENT) -> [validate] -> controller
+// The first two come from `router.use()` above, so every route below inherits
+// them and a route added later cannot ship unprotected.
+//
+// NOTE ON PATH ORDER: `/portfolio/documents/:fileName` is declared BEFORE the
+// `/portfolio/:section/:entryId/document` pattern. Express matches in
+// declaration order, and `documents` would otherwise be captured as a `:section`,
+// turning every download into a 404.
+router.get('/portfolio', getPortfolio);
+router.get('/portfolio/completion', getCompletion);
+
+// Downloads. Authenticated, and the service will only resolve a file that the
+// caller's own profile actually references — there is deliberately no static
+// middleware serving the uploads directory.
+router.get(
+  '/portfolio/documents/:fileName',
+  validateStoredFileNameParam,
+  downloadDocument,
+);
+
+// The resume is singular and replaced rather than appended: a student has one
+// current resume, and uploading again removes the previous file from disk.
+router
+  .route('/portfolio/resume')
+  .post(validateDocumentUpload, uploadResume)
+  .delete(deleteResume);
+
+router.route('/portfolio/projects').post(validateCreateProject, createProject);
+
+router
+  .route('/portfolio/projects/:projectId')
+  .patch(validateObjectIdParam('projectId'), validateUpdateProject, patchProject)
+  .delete(validateObjectIdParam('projectId'), deleteProject);
+
+router
+  .route('/portfolio/certifications')
+  .post(validateCreateCertification, createCertification);
+
+router
+  .route('/portfolio/certifications/:certificationId')
+  .patch(
+    validateObjectIdParam('certificationId'),
+    validateUpdateCertification,
+    patchCertification,
+  )
+  .delete(validateObjectIdParam('certificationId'), deleteCertification);
+
+router.route('/portfolio/achievements').post(validateCreateAchievement, createAchievement);
+
+router
+  .route('/portfolio/achievements/:achievementId')
+  .patch(validateObjectIdParam('achievementId'), validateUpdateAchievement, patchAchievement)
+  .delete(validateObjectIdParam('achievementId'), deleteAchievement);
+
+router.route('/portfolio/experiences').post(validateCreateExperience, createExperience);
+
+router
+  .route('/portfolio/experiences/:experienceId')
+  .patch(validateObjectIdParam('experienceId'), validateUpdateExperience, patchExperience)
+  .delete(validateObjectIdParam('experienceId'), deleteExperience);
+
+/**
+ * Attaching proof to one record.
+ *
+ * `:section` is constrained by the regex to the four sections that can carry a
+ * document, so an unknown section is a 404 from the router itself rather than
+ * something a controller has to police. The section also *determines* the
+ * document type — a student cannot attach a certificate to a project — which is
+ * what keeps this from being a general-purpose file store.
+ */
+router
+  .route('/portfolio/:section(projects|certifications|achievements|experiences)/:entryId/document')
+  .post(validateObjectIdParam('entryId'), validateDocumentUpload, uploadEntryDocument)
+  .delete(validateObjectIdParam('entryId'), deleteEntryDocument);
 
 export default router;

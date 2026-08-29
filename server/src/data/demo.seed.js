@@ -77,6 +77,8 @@ export const DEMO_STUDENTS = [
     name: 'Aarav Menon',
     email: 'aarav.menon@student.demo',
     headline: 'Full stack developer, MERN, looking for a backend internship',
+    bio:
+      'Third-year CSE student who mostly writes backend JavaScript. The part I like is where the data model stops fighting the feature. Currently trying to get better at making a service observable rather than merely working.',
     branch: 'Computer Science and Engineering',
     degree: 'B.E.',
     graduationYear: 2027,
@@ -106,6 +108,8 @@ export const DEMO_STUDENTS = [
     name: 'Ishita Bose',
     email: 'ishita.bose@student.demo',
     headline: 'Data science student, Python and ML, two published notebooks',
+    bio:
+      'Final-year student working on applied ML, mostly forecasting. I have learned to care more about whether an evaluation is honest than whether a model is clever, which is a lesson one badly split dataset taught me the hard way.',
     branch: 'Computer Science and Engineering',
     degree: 'B.Tech',
     graduationYear: 2026,
@@ -135,6 +139,8 @@ export const DEMO_STUDENTS = [
     name: 'Rohan Iyer',
     email: 'rohan.iyer@student.demo',
     headline: 'Frontend developer, React, learning testing',
+    bio:
+      'Frontend developer who got here through CSS. I am deliberately working on testing and on the backend half, because that is the obviously thin part of my profile and pretending otherwise has not helped.',
     branch: 'Computer Science and Engineering',
     degree: 'B.E.',
     graduationYear: 2027,
@@ -256,6 +262,8 @@ export const DEMO_STUDENTS = [
     name: 'Divya Ramesh',
     email: 'divya.ramesh@student.demo',
     headline: 'Second year, learning web development',
+    bio:
+      'Second-year student learning web development. One project finished on my own so far, HTML and CSS solid, JavaScript still a work in progress. Looking for a first internship where I would be allowed to be a beginner.',
     branch: 'Computer Science and Engineering',
     degree: 'B.E.',
     graduationYear: 2028,
@@ -390,6 +398,8 @@ export const DEMO_STUDENTS = [
     name: 'Priya Ranganathan',
     email: 'priya.ranganathan@student.demo',
     headline: 'Final year, MERN projects, yet to take an assessment',
+    bio:
+      'Final year, and everything on this profile is still self-reported: I have not sat an assessment yet and I have not written up my projects. Both are next on my list.',
     branch: 'Computer Science and Engineering',
     degree: 'B.E.',
     graduationYear: 2026,
@@ -570,6 +580,239 @@ export const DEMO_STUDENTS = [
     ],
   },
 ];
+
+/**
+ * Portfolio records — projects, certifications, experience and achievements.
+ *
+ * KEYED BY EMAIL, AND DELIBERATELY NOT ATTACHED TO EVERY STUDENT. Four students have
+ * portfolio records, one more has a bio and nothing else, and the remaining seventeen
+ * have none. That spread is the content: the portfolio completion score is supposed to
+ * separate a student who has assembled their evidence from one who has not, and a seed
+ * where all 22 look the same would make the score look decorative.
+ *
+ * What it comes out as, given the weights in constants/portfolio.js:
+ *
+ *   Aarav     85%   projects, certifications, experience, achievements. Missing: resume.
+ *   Ishita    75%   the same minus certifications — a research-track student who never
+ *                   collected a course certificate, which is normal.
+ *   Rohan     65%   projects and one achievement. No experience yet, and he knows it.
+ *   Divya     60%   one project. Persona C is the student the product is for.
+ *   Priya     45%   a written profile and no portfolio at all — every empty state.
+ *   Most      30%   education and skills, from Step 3, and nothing else.
+ *   Imran     15%   one skill where the section wants three. Persona D, first year.
+ *   Persona E  0%   no degree, no graduation year, no skills. Every section missing.
+ *
+ * That 0% is not a bug to round up. A student who has just signed up genuinely has none
+ * of this, and a score that flatters them is a score nobody can act on.
+ *
+ * NOBODY REACHES 100, AND THAT IS ON PURPOSE. No resume is seeded anywhere, because a
+ * resume is a stored file and there are no files on disk in a fresh clone: seeded
+ * metadata would render a download button that 404s, which is worse than an empty slot.
+ * The empty slot also means the completion panel always has one real, actionable
+ * recommendation to show, instead of a congratulatory 100% that demonstrates nothing.
+ *
+ * NO `verificationStatus` IS SET HERE. The model defaults every record to `pending`,
+ * and pending is the truth — nothing in this build verifies a portfolio record. Writing
+ * `verified: true` into the seed would put a badge on screen that no reviewer earned,
+ * which is exactly the claim Step 6 was told not to fake.
+ *
+ * DATES ARE OFFSETS, NOT LITERALS, for the same reason `deadlineInDays` is: a hardcoded
+ * 2025 date reads as abandoned once the calendar moves past it. `MonthsAgo` counts back
+ * from the seed run; `MonthsAhead` counts forward, and is only used for a certification
+ * expiry — the one date in the portfolio the validator allows to be in the future.
+ * `endMonthsAgo: null` with `isOngoing`/`isCurrent` true is a record still in progress.
+ *
+ * LINKS POINT AT PLACEHOLDER DOMAINS ON PURPOSE. `github.com/skillbridge-demo/...` and
+ * `example.com` are visibly not real, so the link chrome renders in the demo without
+ * anyone mistaking a seeded URL for a repository that exists. `example.com` is reserved
+ * by IANA for precisely this.
+ *
+ * TECHNOLOGIES AND `skillsUsed` ARE FREE TEXT AND DO NOT HAVE TO MATCH THE SKILL LIST.
+ * Aarav's containerisation project lists Docker Compose, which is not a seeded skill and
+ * should not be: what a student used on a project is a different claim from what an
+ * assessment measured, and collapsing the two is how a skills list starts lying.
+ */
+export const DEMO_PORTFOLIOS = {
+  'aarav.menon@student.demo': {
+    projects: [
+      {
+        title: 'Campus placement tracker',
+        description:
+          'A tracker the placement cell uses instead of a shared spreadsheet: companies, rounds, and where each student currently stands. Four of us built it; I wrote the API and the data model, including the part that stops two coordinators from overwriting the same round.',
+        technologies: ['Node.js', 'Express', 'MongoDB', 'React', 'JWT'],
+        role: 'Backend developer',
+        githubUrl: 'https://github.com/skillbridge-demo/placement-tracker',
+        startMonthsAgo: 14,
+        endMonthsAgo: 9,
+      },
+      {
+        title: 'Live library seat availability',
+        description:
+          'Sensors on the reading room turnstiles feed a small service that shows how many seats are free, so nobody walks across campus during exam week for nothing. My first time keeping a socket connection alive through a flaky campus network.',
+        technologies: ['Node.js', 'WebSocket', 'MongoDB', 'Chart.js'],
+        role: 'Sole developer',
+        githubUrl: 'https://github.com/skillbridge-demo/library-seats',
+        liveUrl: 'https://seats.skillbridge-demo.example.com',
+        startMonthsAgo: 8,
+        endMonthsAgo: 5,
+      },
+      {
+        title: 'One-command dev setup for the coding club',
+        description:
+          'New club members were losing their first two sessions to installing Mongo. This is a Compose file and a seed script that gets them to a running app in one command. Still finding edge cases on Windows.',
+        technologies: ['Docker', 'Docker Compose', 'Bash', 'MongoDB'],
+        role: 'Maintainer',
+        githubUrl: 'https://github.com/skillbridge-demo/club-dev-setup',
+        startMonthsAgo: 3,
+        endMonthsAgo: null,
+        isOngoing: true,
+      },
+    ],
+    certifications: [
+      {
+        title: 'Modern Application Development',
+        issuingOrganization: 'NPTEL',
+        issueMonthsAgo: 8,
+        credentialId: 'NPTEL25CS03S194772',
+      },
+      {
+        title: 'MongoDB Associate Developer',
+        issuingOrganization: 'MongoDB University',
+        issueMonthsAgo: 5,
+        expiryMonthsAhead: 31,
+        credentialId: 'MDB-AD-4471902',
+        credentialUrl: 'https://verify.example.com/mongodb/MDB-AD-4471902',
+      },
+    ],
+    experiences: [
+      {
+        organization: 'Marutham Systems',
+        role: 'Backend intern',
+        experienceType: 'internship',
+        startMonthsAgo: 8,
+        endMonthsAgo: 6,
+        description:
+          'Two months on an internal billing service. I added the reconciliation endpoint and moved a nightly report off a cron job that silently failed when it overran. Learned more from reading their existing code than from anything I wrote.',
+        skillsUsed: ['Node.js', 'Express', 'MongoDB', 'Postman', 'Git'],
+      },
+    ],
+    achievements: [
+      {
+        title: 'Runner-up, Anna University Hackfest',
+        achievementType: 'hackathon',
+        description:
+          'Second of 74 teams for a 36-hour build: a bus-pass renewal flow that works offline and syncs when the phone finds signal. I built the sync layer.',
+        dateMonthsAgo: 11,
+        issuingOrganization: 'Anna University Regional Campus',
+      },
+      {
+        title: 'Departmental merit scholarship',
+        achievementType: 'scholarship',
+        description:
+          'Awarded to the top three students in the second-year cohort by CGPA. Covers tuition for one academic year.',
+        dateMonthsAgo: 19,
+        issuingOrganization: 'Anna University Regional Campus',
+      },
+    ],
+  },
+
+  'ishita.bose@student.demo': {
+    projects: [
+      {
+        title: 'District-level rainfall forecasting',
+        description:
+          'Monthly rainfall forecasts for 38 districts from 30 years of IMD records. The interesting part was not the model — it was discovering that my first validation split leaked future data backwards, and that the honest score was about 11 points worse than the one I nearly presented.',
+        technologies: ['Python', 'pandas', 'scikit-learn', 'Matplotlib'],
+        role: 'Sole author',
+        githubUrl: 'https://github.com/skillbridge-demo/rainfall-forecast',
+        startMonthsAgo: 16,
+        endMonthsAgo: 10,
+      },
+      {
+        title: 'Dropout risk indicators for the department',
+        description:
+          'A dashboard the department uses to spot students falling behind early, from attendance and internal marks. Deliberately reports factors rather than a single risk number, because a number gets treated as a verdict and these factors are the things a tutor can actually act on.',
+        technologies: ['Python', 'pandas', 'Streamlit', 'SQL'],
+        role: 'Data analyst',
+        liveUrl: 'https://dropout-signals.example.com',
+        startMonthsAgo: 9,
+        endMonthsAgo: 3,
+      },
+    ],
+    experiences: [
+      {
+        organization: 'Centre for Data Sciences, Anna University Regional Campus',
+        role: 'Undergraduate research assistant',
+        experienceType: 'part_time',
+        startMonthsAgo: 13,
+        endMonthsAgo: null,
+        isCurrent: true,
+        description:
+          'Ten hours a week on a groundwater time-series study: cleaning sensor data, writing the evaluation harness, and drafting the results section of the paper below.',
+        skillsUsed: ['Python', 'pandas', 'statistics', 'LaTeX'],
+      },
+    ],
+    achievements: [
+      {
+        title: 'Paper accepted, National Conference on Data Engineering',
+        achievementType: 'publication',
+        description:
+          'Co-authored a short paper on evaluating groundwater level forecasts when the sensor record has long gaps. Presented at the student track.',
+        dateMonthsAgo: 4,
+        issuingOrganization: 'National Conference on Data Engineering',
+      },
+    ],
+  },
+
+  'rohan.iyer@student.demo': {
+    projects: [
+      {
+        title: 'Accessible component library for club sites',
+        description:
+          'Every club on campus was rebuilding the same modal, badly. This is fourteen components that pass keyboard navigation and contrast checks, documented in Storybook so nobody has to read the source to use them.',
+        technologies: ['React', 'CSS', 'Storybook', 'Testing Library'],
+        role: 'Frontend developer',
+        githubUrl: 'https://github.com/skillbridge-demo/club-components',
+        startMonthsAgo: 10,
+        endMonthsAgo: 4,
+      },
+      {
+        title: 'Department symposium site',
+        description:
+          'The public site for our annual symposium — schedule, speakers, registration. Around 2,000 people used it over three days on mostly mid-range phones, so I spent most of my time on how fast the first screen renders.',
+        technologies: ['HTML', 'CSS', 'JavaScript'],
+        role: 'Sole developer',
+        liveUrl: 'https://symposium.skillbridge-demo.example.com',
+        startMonthsAgo: 9,
+        endMonthsAgo: 7,
+      },
+    ],
+    achievements: [
+      {
+        title: 'Best interface, department project expo',
+        achievementType: 'competition',
+        description:
+          'Judged best interface out of 31 projects at the annual expo, for the component library above. The feedback that stuck was that the keyboard-only walkthrough was what set it apart.',
+        dateMonthsAgo: 5,
+        issuingOrganization: 'Anna University Regional Campus',
+      },
+    ],
+  },
+
+  'divya.ramesh@student.demo': {
+    projects: [
+      {
+        title: 'Personal portfolio site',
+        description:
+          'My first project built without following a tutorial line by line. Hand-written HTML and CSS, a small amount of JavaScript for the navigation, and a layout I rewrote three times before it worked on a phone.',
+        technologies: ['HTML', 'CSS', 'JavaScript'],
+        role: 'Built it on my own',
+        startMonthsAgo: 5,
+        endMonthsAgo: 3,
+      },
+    ],
+  },
+};
 
 /**
  * The postings. 12 of them, across the three employers and every lifecycle state.
@@ -925,6 +1168,7 @@ export default {
   OTHER_INSTITUTION_NAME,
   DEMO_EMPLOYERS,
   DEMO_STUDENTS,
+  DEMO_PORTFOLIOS,
   DEMO_OPPORTUNITIES,
   DEMO_APPLICATIONS,
 };

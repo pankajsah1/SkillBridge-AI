@@ -33,7 +33,7 @@ import ProgressBar from '../../components/ui/ProgressBar.jsx';
 import { Spinner } from '../../components/ui/Spinner.jsx';
 import { APPLICATION_STATUSES, statusLabel } from '../../constants/applications.js';
 
-const UPCOMING = ['Your verified digital portfolio'];
+const UPCOMING = [];
 
 /** The three Step 3 destinations. Anchors land on the matching section's id. */
 const ACTIONS = [
@@ -250,6 +250,29 @@ export default function StudentDashboard() {
               </Link>
             ))}
           </div>
+        </Card>
+
+        {/* The portfolio is where the profile becomes evidence: the headline,
+            skills and career goals the cards above describe, plus the resume,
+            projects and achievements that back them up. Placed after the profile
+            card because it presents what that page collects. */}
+        <Card
+          title="Your portfolio"
+          description="Your resume, projects, certifications, experience and achievements — collected in one place."
+          action={
+            <Link
+              to="/student/portfolio"
+              className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary-600 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-primary-700"
+            >
+              Open portfolio
+            </Link>
+          }
+        >
+          <p className="text-sm text-slate-600">
+            The profile describes you; the portfolio proves you. Add a resume, the projects you have
+            built, and what you have done outside coursework — each section shows a completion
+            score worked out by the server, so you always know what is missing.
+          </p>
         </Card>
 
         {/* Assessment sits above opportunities because it is what makes the rest

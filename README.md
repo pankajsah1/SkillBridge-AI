@@ -2,17 +2,21 @@
 
 **Academia–Industry Collaboration Portal** — connecting students, industry, academicians and institutions through verified skills, explainable matching, and real opportunities.
 
-> **Status:** Step 4 — Opportunity management and discovery. On top of the Step 1
-> foundation, Step 2 auth and the Step 3 profile, an **industry** account can now
-> post an opportunity, edit it, close and reopen it, delete it, and see all of its
-> own postings; a **student** can browse everything that is open, search it, filter
-> by type, location, work mode and required skills, and read the full details.
+> **Status:** Step 6 — Student portfolio and secure document management. Every
+> flow is live end to end: a student registers, builds a profile, sits an
+> assessment that scores itself on the server, sees their career readiness and
+> skill gaps, browses ranked opportunity matches with the reasoning behind each
+> score, applies, watches the status history as an employer moves them along, and
+> assembles a portfolio of projects, certifications, achievements and experience
+> with the documents that back them up. An **industry** account posts and manages
+> opportunities and works a ranked applicant pipeline. An **institution** account
+> sees cohort readiness, the skill gaps against live hiring, and placements.
 >
-> Applications and matching are **not** built. There is no Apply button, no match
-> percentage and no recommendation ranking anywhere — those are later phases with
-> their own data model, and a number invented in the browser would be read as the
-> portal's verified judgement of a student's fit. The Academician, Institution and
-> Admin dashboards remain placeholders.
+> **Nothing verifies a portfolio record yet.** Every record says `pending`,
+> because there is no reviewer role and no endpoint that promotes one — the field
+> is there so the badge tells the truth rather than flattering the profile.
+> Notifications are not built. The Academician and Admin dashboards remain
+> honest placeholders that list what they will contain.
 
 ---
 
@@ -58,7 +62,8 @@ skillbridge-ai/
 │   │   │   ├── assessment.api.js     # generate, take, submit, history
 │   │   │   ├── matching.api.js       # readiness, recommendations, matches
 │   │   │   ├── application.api.js    # apply, my applications, applicants
-│   │   │   └── analytics.api.js      # the institution overview, one call
+│   │   │   ├── analytics.api.js      # the institution overview, one call
+│   │   │   └── portfolio.api.js      # portfolio records + document upload
 │   │   ├── components/
 │   │   │   ├── ui/              # Button, Input, Textarea, Select, Alert,
 │   │   │   │                    # Spinner, Card, Badge, ProgressBar, EmptyState,
@@ -78,13 +83,27 @@ skillbridge-ai/
 │   │   │   │   ├── ApplyCard.jsx             # the apply form + its refusals
 │   │   │   │   └── ApplicationStatusTimeline.jsx  # the real status history
 │   │   │   ├── industry/CandidateCard.jsx    # one ranked applicant
-│   │   │   └── institution/AnalyticsCharts.jsx  # CSS bars, no chart library
+│   │   │   ├── institution/AnalyticsCharts.jsx  # CSS bars, no chart library
+│   │   │   └── portfolio/
+│   │   │       ├── PortfolioHeader.jsx        # name, headline, completion ring
+│   │   │       ├── PortfolioSummary.jsx       # bio, education, skills, readiness
+│   │   │       ├── PortfolioCompletionPanel.jsx # what is missing, and the fix
+│   │   │       ├── PortfolioSection.jsx       # one collapsible record section
+│   │   │       ├── RecordCard.jsx             # one project/cert/achievement/role
+│   │   │       ├── RecordForm.jsx             # add and edit, driven by config
+│   │   │       ├── ResumeCard.jsx             # the single current resume
+│   │   │       ├── DocumentControl.jsx        # attach, download, remove
+│   │   │       └── VerificationBadge.jsx      # pending / verified / rejected
 │   │   ├── constants/
 │   │   │   ├── roles.js         # role labels + dashboard paths
 │   │   │   ├── skills.js        # proficiency bands, category labels
 │   │   │   ├── opportunities.js # types, work modes, statuses, availability,
 │   │   │   │                    # limits — mirrors the server file of the same name
-│   │   │   └── applications.js  # statuses, labels, the pipeline order
+│   │   │   ├── applications.js  # statuses, labels, the pipeline order
+│   │   │   ├── portfolio.js     # upload limits, type labels, badge styling —
+│   │   │   │                    # mirrors the server file of the same name
+│   │   │   └── portfolioSections.js # the four record sections as data: fields,
+│   │   │                            # validation, card shape, request payload
 │   │   ├── context/AuthContext.jsx
 │   │   ├── hooks/
 │   │   │   ├── useStudentProfile.js  # loads the profile, owns every write
@@ -93,7 +112,8 @@ skillbridge-ai/
 │   │   │   ├── useOpportunity.js     # one opportunity, for the detail page
 │   │   │   ├── useMyOpportunities.js # the owner's list, summary and row actions
 │   │   │   ├── useOpportunityEditor.js # create/edit form state and submission
-│   │   │   └── useAssessmentAttempt.js # one attempt: answers, timer, submit
+│   │   │   ├── useAssessmentAttempt.js # one attempt: answers, timer, submit
+│   │   │   └── usePortfolio.js        # the portfolio, and every write to it
 │   │   ├── pages/
 │   │   │   ├── Login.jsx  Register.jsx
 │   │   │   ├── SystemStatus.jsx      # the Step 1 status card, now at /status
@@ -113,7 +133,8 @@ skillbridge-ai/
 │   │   │   │   ├── AssessmentResult.jsx      # score, band, what to study
 │   │   │   │   ├── CareerReadiness.jsx       # readiness + gaps per career goal
 │   │   │   │   ├── MatchedOpportunities.jsx  # ranked matches, with reasons
-│   │   │   │   └── MyApplications.jsx        # every application and its history
+│   │   │   │   ├── MyApplications.jsx        # every application and its history
+│   │   │   │   └── StudentPortfolio.jsx      # the portfolio page, /student/portfolio
 │   │   │   └── industry/
 │   │   │       ├── MyOpportunities.jsx       # the owner's management list
 │   │   │       ├── OpportunityFormPage.jsx   # one page for create and edit
@@ -147,7 +168,9 @@ skillbridge-ai/
 │   │   │   ├── opportunities.js # types, work modes, statuses, the status
 │   │   │   │                    # transition graph, limits, availability rules
 │   │   │   ├── assessments.js   # attempt limits, difficulty mix, scoring bands
-│   │   │   └── applications.js  # statuses, the legal transition map, labels
+│   │   │   ├── applications.js  # statuses, the legal transition map, labels
+│   │   │   └── portfolio.js     # section weights, upload limits, allowed MIME
+│   │   │                        # types, document types, verification statuses
 │   │   ├── controllers/         # request/response only
 │   │   │   ├── auth.controller.js
 │   │   │   ├── health.controller.js
@@ -156,7 +179,8 @@ skillbridge-ai/
 │   │   │   ├── opportunity.controller.js
 │   │   │   ├── assessment.controller.js
 │   │   │   ├── application.controller.js
-│   │   │   └── analytics.controller.js  # reads req.user and nothing else
+│   │   │   ├── analytics.controller.js  # reads req.user and nothing else
+│   │   │   └── portfolio.controller.js  # records, uploads, downloads
 │   │   ├── data/
 │   │   │   ├── skills.seed.js       # the seed catalogue, as plain data
 │   │   │   ├── careerRoles.seed.js
@@ -195,6 +219,8 @@ skillbridge-ai/
 │   │   │   ├── matching.service.js      # the match score, pure and testable
 │   │   │   ├── application.service.js   # apply, and the legal status moves
 │   │   │   ├── analytics.service.js     # the institution overview; read-only
+│   │   │   ├── portfolio.service.js     # every query filters on the caller
+│   │   │   ├── document.service.js      # reads the raw stream, no upload library
 │   │   │   └── ai/
 │   │   │       ├── aiProvider.js        # one HTTP call, provider-agnostic
 │   │   │       └── assessmentAi.js      # question TEXT only — never a score
@@ -208,13 +234,16 @@ skillbridge-ai/
 │   │   │   ├── studentProfile.validator.js
 │   │   │   ├── opportunity.validator.js
 │   │   │   ├── assessment.validator.js
-│   │   │   └── application.validator.js
+│   │   │   ├── application.validator.js
+│   │   │   └── portfolio.validator.js  # the four sections + upload headers
 │   │   ├── app.js               # builds the Express app
 │   │   └── server.js            # starts it
 │   ├── scripts/
 │   │   ├── checkDbConnection.js
 │   │   ├── seed.js              # seeds the skill + career-role catalogue
 │   │   └── seedDemo.js          # seeds the demo cohort, postings, pipeline
+│   ├── uploads/                 # created on first upload; gitignored, never
+│   │   │                        # served statically — see "Student portfolio"
 │   └── package.json
 │
 ├── .gitignore
@@ -548,6 +577,88 @@ Steps 2, 3, 4 and 14 are the ones worth running twice. They are the four claims
 this step makes that a UI cannot make for itself: the owner cannot be forged, the
 deadline rule lives on the server, the role gate holds, and one company cannot
 touch another's row.
+
+### Checking the portfolio and document endpoints from the command line
+
+`$TOK` is a student's token; `$TOK2` is a second student's.
+
+```bash
+# 1. the whole portfolio — expect 200, with four arrays and a resume slot
+curl http://localhost:5000/api/v1/students/portfolio -H "Authorization: Bearer $TOK"
+
+# 2. the completion score — expect 200 and a percentage that is never above 100
+curl http://localhost:5000/api/v1/students/portfolio/completion \
+  -H "Authorization: Bearer $TOK"
+
+# 3. add a project — expect 201, and verificationStatus "pending", not "verified"
+curl -X POST http://localhost:5000/api/v1/students/portfolio/projects \
+  -H "Authorization: Bearer $TOK" -H "Content-Type: application/json" \
+  -d '{"title":"Test project","description":"Long enough to pass validation."}'
+
+# 4. try to claim it is verified — expect the field to be ignored or refused,
+#    never accepted. Nothing in this build can promote a record.
+curl -X PATCH http://localhost:5000/api/v1/students/portfolio/projects/<id> \
+  -H "Authorization: Bearer $TOK" -H "Content-Type: application/json" \
+  -d '{"verificationStatus":"verified"}'
+
+# 5. an end date before its start — expect 400 from the server, not the browser
+curl -X POST http://localhost:5000/api/v1/students/portfolio/projects \
+  -H "Authorization: Bearer $TOK" -H "Content-Type: application/json" \
+  -d '{"title":"Backwards","description":"Ends before it starts.",
+       "startDate":"2025-06-01","endDate":"2025-01-01"}'
+
+# 6. upload a resume — raw bytes, binary content type, no multipart
+curl -X POST http://localhost:5000/api/v1/students/portfolio/resume \
+  -H "Authorization: Bearer $TOK" -H "Content-Type: application/pdf" \
+  --data-binary @resume.pdf
+
+# 7. an .exe renamed and declared as a PDF — expect 400. The magic number is
+#    checked, so the declared content type is not trusted.
+printf 'MZ\x90\x00this is not a pdf' > /tmp/fake.pdf
+curl -X POST http://localhost:5000/api/v1/students/portfolio/resume \
+  -H "Authorization: Bearer $TOK" -H "Content-Type: application/pdf" \
+  --data-binary @/tmp/fake.pdf
+
+# 8. something over 5 MB — expect 413, and the stream cut off rather than buffered
+head -c 6000000 /dev/urandom > /tmp/big.pdf
+curl -X POST http://localhost:5000/api/v1/students/portfolio/resume \
+  -H "Authorization: Bearer $TOK" -H "Content-Type: application/pdf" \
+  --data-binary @/tmp/big.pdf
+
+# 9. download your own document — expect 200 and the bytes back. Take the
+#    fileName from step 1; it is generated, never the name you uploaded.
+curl http://localhost:5000/api/v1/students/portfolio/documents/<fileName> \
+  -H "Authorization: Bearer $TOK" -o /tmp/back.pdf
+
+# 10. THE IMPORTANT ONE: the same file as a different student — expect 404.
+#     The name is correct and the token is valid; the file is simply not theirs.
+curl -i http://localhost:5000/api/v1/students/portfolio/documents/<fileName> \
+  -H "Authorization: Bearer $TOK2"
+
+# 11. path traversal — expect 400, and no bytes of .env either way
+curl -i "http://localhost:5000/api/v1/students/portfolio/documents/..%2f..%2f.env" \
+  -H "Authorization: Bearer $TOK"
+
+# 12. no static route to the uploads directory — expect 404, not a file
+curl -i http://localhost:5000/uploads/<fileName>
+
+# 13. an unknown section — expect 404 from the router itself
+curl -X POST http://localhost:5000/api/v1/students/portfolio/secrets/<id>/document \
+  -H "Authorization: Bearer $TOK" -H "Content-Type: application/pdf" \
+  --data-binary @resume.pdf
+
+# 14. as an INDUSTRY account — expect 403 on every route above
+curl -i http://localhost:5000/api/v1/students/portfolio -H "Authorization: Bearer $IND"
+
+# 15. no token — expect 401
+curl -i http://localhost:5000/api/v1/students/portfolio
+```
+
+Steps 7, 8, 10, 11 and 12 are the ones worth running twice. They are the five
+claims a UI cannot make for itself: the declared file type is not trusted, the size
+cap holds while the body is still arriving, one student cannot read another's
+document even knowing its exact name, a traversal attempt cannot escape the uploads
+root, and there is no static route serving those files at all.
 
 ---
 
@@ -1127,11 +1238,182 @@ nothing.
 
 ---
 
+## Student portfolio and documents
+
+One page, `/student/portfolio`, where a student assembles the evidence behind
+their profile: a written summary, a resume, projects, certifications,
+achievements, internship and work records, and the documents that back them up.
+
+### How the data fits together
+
+**There is no new collection.** All four record sections are embedded arrays on
+`StudentProfile`, and the resume is a single embedded subdocument. A portfolio is
+only ever read as a whole page and only ever written by the one student who owns
+it, so a separate collection would buy a join and nothing else.
+
+```text
+StudentProfile
+├── headline, bio                     # the summary section (bio is new)
+├── institutionName, degree, branch,  # the education section — already existed,
+│   graduationYear, currentYear, cgpa #   deliberately not duplicated
+├── skills[]                          # already existed; the portfolio reads it
+├── resume            { fileName, originalName, mimeType, size, uploadedAt }
+├── projects[]        { title, description, technologies[], role, githubUrl,
+│                       liveUrl, startDate, endDate, isOngoing, document,
+│                       verificationStatus, timestamps }
+├── certifications[]  { title, issuingOrganization, issueDate, expiryDate,
+│                       credentialId, credentialUrl, document, ... }
+├── achievements[]    { title, achievementType, description, date,
+│                       issuingOrganization, document, ... }
+└── experiences[]     { organization, role, experienceType, startDate, endDate,
+                        isCurrent, description, skillsUsed[], document, ... }
+```
+
+Education reuses the Step 3 fields as they are. Skills reuse the Step 3 skill
+list, so an assessment that verifies a skill updates the portfolio too; a project
+also lists free-text `technologies`, which is a different claim — what you used on
+one project is not what an assessment measured, and merging the two is how a
+skills list starts lying.
+
+### The completion score is arithmetic, not AI
+
+Computed on the server by `computePortfolioCompletion()`, from eight weighted
+sections that sum to exactly 100:
+
+| Section | Weight | Counts as filled when |
+| --- | --- | --- |
+| Profile summary | 15 | headline **and** bio are both non-empty |
+| Education details | 15 | institution, degree and graduation year are set |
+| Skills | 15 | at least three skills |
+| Resume | 15 | a resume file is stored |
+| Projects | 15 | at least one project |
+| Certifications | 10 | at least one certification |
+| Experience | 10 | at least one experience record |
+| Achievements | 5 | at least one achievement |
+
+`GET /students/portfolio/completion` returns the percentage, the sections that are
+done, and the ones that are not — each with the sentence a student should read to
+fix it. Nothing is rounded up and nothing is inferred: a section is filled or it
+is not, the total never exceeds 100, and an empty profile scores 0 rather than
+being flattered to a friendlier number.
+
+> The section key for experience records is `experience` in the completion
+> response and `experiences` everywhere else — the array, the route segment, the
+> client config. Both spellings are load-bearing; the client maps between them.
+
+### Verification is honest about not existing
+
+Every record carries `verificationStatus`, one of `pending`, `verified` or
+`rejected`, and **every student-created record starts and stays `pending`.**
+Nothing in this build promotes a record. There is no reviewer role, no approval
+queue and no endpoint that sets `verified` — the field exists so the schema and
+the UI are ready for one, and the badge reads "Awaiting verification" because that
+is the true state. The demo seed sets no statuses either, for the same reason: a
+green tick nobody earned is worse than an honest amber one.
+
+### How documents are stored
+
+Files go to `server/uploads/`, which is gitignored. The database stores metadata
+only — `fileName`, `originalName`, `mimeType`, `size`, `uploadedAt` — never bytes,
+and never an absolute path. No cloud provider is hardcoded; swapping the storage
+layer means reimplementing `document.service.js` and nothing above it.
+
+**There is no upload library.** No multer, no busboy. A document is sent as a raw
+request body with a binary content type, and `document.service.js` reads the
+stream itself using Node built-ins. `app.js` mounts only the content-type-gated
+`express.json()` and `express.urlencoded()`, so neither parser touches a binary
+body — which is what lets the byte cap be enforced while the stream is still
+arriving rather than after it has already been buffered.
+
+What the upload path enforces, in order:
+
+| Guard | Rule |
+| --- | --- |
+| Authentication | `authenticate` → `allowRoles(STUDENT)` before anything reads the body |
+| Ownership | the owner is `req.user.id`; the request body cannot name a student |
+| Declared type | `Content-Type` must be one of PDF, PNG, JPEG, DOCX or plain text |
+| Actual type | the first bytes must match that type's magic number (`%PDF`, `PK\x03\x04`, ...) — a renamed `.exe` sent as `application/pdf` is rejected |
+| Size | 5 MB, enforced while reading; the stream is destroyed the moment it is exceeded |
+| Count | 40 documents per student |
+| Filename | the original is **never** used as a path. Stored names are generated: `<ownerId>-<epochMs>-<16 hex>.<ext>`, and a download must match that exact pattern |
+| Path traversal | the resolved absolute path is re-checked to still sit inside the uploads root, with a trailing separator so `/uploads-evil/x` cannot pass as a child of `/uploads` |
+| Missing file | metadata without a file on disk returns a clean 404, not a stack trace |
+
+`originalName` is kept for display only, trimmed and length-capped.
+
+**Downloads go through an authenticated controller, and there is deliberately no
+`express.static('uploads')`.** Static middleware would make every stored document
+readable by anyone who guessed its name. Instead `GET /students/portfolio/documents/:fileName`
+verifies the caller's own profile actually references that file before streaming a
+byte, so one student cannot fetch another's certificate even with the exact name.
+
+Document types are fixed to the five the product needs — `resume`, `certificate`,
+`achievement_proof`, `experience_proof`, `project_attachment` — and the type is
+decided by the section the file is attached to, not by the client. A certificate
+cannot be attached to a project. This is not a general file store.
+
+### Endpoints
+
+Every one is `authenticate` → `allowRoles(STUDENT)` → validate → controller, and
+every one resolves the profile from `req.user.id`. A student never sends their own
+id; the request body cannot name one.
+
+| Method | Route | Auth | Purpose |
+| --- | --- | --- | --- |
+| `GET` | `/api/v1/students/portfolio` | Student | The whole portfolio, in one call |
+| `GET` | `/api/v1/students/portfolio/completion` | Student | Percentage, completed and missing sections |
+| `GET` | `/api/v1/students/portfolio/documents/:fileName` | Student | Download one of your own documents |
+| `POST` | `/api/v1/students/portfolio/resume` | Student | Upload or replace the resume |
+| `DELETE` | `/api/v1/students/portfolio/resume` | Student | Remove it, file included |
+| `POST` | `/api/v1/students/portfolio/projects` | Student | Add a project |
+| `PATCH` | `/api/v1/students/portfolio/projects/:projectId` | Student | Edit one |
+| `DELETE` | `/api/v1/students/portfolio/projects/:projectId` | Student | Remove one |
+| `POST` | `/api/v1/students/portfolio/certifications` | Student | Add a certification |
+| `PATCH` | `/api/v1/students/portfolio/certifications/:certificationId` | Student | Edit one |
+| `DELETE` | `/api/v1/students/portfolio/certifications/:certificationId` | Student | Remove one |
+| `POST` | `/api/v1/students/portfolio/achievements` | Student | Add an achievement |
+| `PATCH` | `/api/v1/students/portfolio/achievements/:achievementId` | Student | Edit one |
+| `DELETE` | `/api/v1/students/portfolio/achievements/:achievementId` | Student | Remove one |
+| `POST` | `/api/v1/students/portfolio/experiences` | Student | Add an experience record |
+| `PATCH` | `/api/v1/students/portfolio/experiences/:experienceId` | Student | Edit one |
+| `DELETE` | `/api/v1/students/portfolio/experiences/:experienceId` | Student | Remove one |
+| `POST` | `/api/v1/students/portfolio/:section(projects\|certifications\|achievements\|experiences)/:entryId/document` | Student | Attach proof to one record |
+| `DELETE` | `/api/v1/students/portfolio/:section(projects\|certifications\|achievements\|experiences)/:entryId/document` | Student | Remove that proof |
+
+That last route is written the way the router actually declares it, alternation
+included, because the alternation is the security boundary: `:section` can only
+ever be one of those four, so an unknown section is a 404 from Express itself
+rather than something a controller has to police. The section also *determines* the
+document type, which is what keeps this from being a general-purpose file store.
+
+`/portfolio/documents/:fileName` is declared **before** `/portfolio/:section/...`
+in `student.routes.js`. Express matches in declaration order, and without the
+alternation constraint `documents` would be captured as a section name, turning
+every download into a 404.
+
+The resume is singular and replaced rather than appended: uploading a second one
+deletes the first from disk, because a student has one current resume.
+
+### The student flow in the browser
+
+`/student/portfolio` loads once and every write goes through `usePortfolio.js`,
+which owns the optimistic update and the rollback. The four record sections are
+generated from `constants/portfolioSections.js` — one config object per section
+describing its fields, its validation, its card shape and its request payload — so
+adding a field means editing data, not four components.
+
+The page opens with the completion panel, and the panel is the point: it names the
+highest-weight thing still missing and links to the form that fixes it. Records
+show a verification badge, an attach-proof control, and dates as month and year.
+The client validates before submitting, and the server validates again regardless.
+
+---
+
 ## Demo data
 
 `npm run seed` loads the catalogue. `npm run seed:demo` loads a **story**: 22
-students, 3 employers, 12 postings and 31 applications, all reachable through the
-UI with one password.
+students, 3 employers, 12 postings, 31 applications and 16 portfolio records, all
+reachable through the UI with one password.
 
 ```bash
 cd server
@@ -1184,6 +1466,51 @@ Postings are created **active**, applications are seeded, statuses are walked, a
 only then do the draft and closed postings take their final state. That is the
 order reality uses, and `createApplication` rightly refuses a closed or expired
 posting.
+
+### Portfolios are on a minority of the cohort, on purpose
+
+Four students have portfolio records. One more has a written summary and nothing
+else. The remaining seventeen have neither. A completion score that reads the same
+for all 22 students would look decorative, so the seed spreads it:
+
+| Student | Completion | What they have |
+| --- | --- | --- |
+| Aarav | 85% | 3 projects, 2 certifications, an internship, 2 achievements |
+| Ishita | 75% | 2 projects, a current research post, a published paper — no certificate |
+| Rohan | 65% | 2 projects and one competition win; no experience yet |
+| Divya | 60% | one project, honestly described as her first |
+| Priya | 45% | a written profile and no portfolio at all — every empty state |
+| most of the cohort | 30% | education and skills, from Step 3, and nothing else |
+| Imran | 15% | one skill where the section wants three |
+| Rahul, Sanya | 0% | no degree, no graduation year, no skills |
+
+**Nobody reaches 100, and no resume is seeded anywhere.** A resume is a stored
+file, and a fresh clone has no files on disk — seeded metadata would render a
+download button that 404s, which is worse than an empty slot. The empty slot also
+means the completion panel always has one real, actionable recommendation instead
+of a congratulatory 100% that demonstrates nothing. The 0% is not a bug to round
+up either: a student who has just signed up genuinely has none of this, and a
+score that flatters them is a score nobody can act on.
+
+**No `verificationStatus` is set in the seed.** The model defaults every record to
+`pending`, and pending is the truth.
+
+**Dates are month offsets, not literals** — `startMonthsAgo: 14`, and a single
+`expiryMonthsAhead` for the one certification allowed a future date. A hardcoded
+2025 date reads as abandoned once the calendar moves past it. Offsets resolve to
+the 15th at midday, which dodges the end-of-month overflow that would otherwise
+print the wrong month on a card showing only month and year.
+
+Links point at `github.com/skillbridge-demo/...` and IANA-reserved `example.com`,
+so the link chrome renders without anyone mistaking a seeded URL for a real repo.
+
+`validateDemoData()` enforces all of this before the database connection opens: it
+rejects a portfolio keyed to an unknown email, an unregistered date offset, an end
+date before its start, an ongoing record that also has an end date, and any
+attempt to write a `verificationStatus` into the seed.
+
+Because `upsertProfile` sets all four arrays on every student, **re-seeding is a
+reset, not an append** — records added by hand through the UI are replaced.
 
 ---
 
@@ -1250,23 +1577,31 @@ the flows in the PRD and TRD are used instead.
 ~~Opportunities~~ → ~~Assessment engine~~ → ~~Career readiness & gap analysis~~ →
 ~~Learning recommendations~~ → ~~Matching~~ → ~~Applications~~ →
 ~~Candidate ranking~~ → ~~Institution analytics~~ → ~~Demo data~~ →
-Portfolio → Notifications.
+~~Portfolio & documents~~ → Notifications.
 
 Each step ships one complete, working flow before the next begins.
 
 Every flow above is live end to end. A student can register, build a profile, sit
 an assessment, see their readiness and what to study, browse ranked matches with
-the reasoning behind each score, apply, and watch the status history as an
-employer moves them along. An employer can post, see ranked applicants with the
-match score frozen at apply time, and move them through the pipeline. An
-institution can see cohort readiness, the skill gaps against live hiring, and the
-placement pipeline.
+the reasoning behind each score, apply, watch the status history as an employer
+moves them along, and assemble a portfolio with the documents behind it. An
+employer can post, see ranked applicants with the match score frozen at apply
+time, and move them through the pipeline. An institution can see cohort readiness,
+the skill gaps against live hiring, and the placement pipeline.
 
 The `ACADEMICIAN` and `ADMIN` dashboards still render placeholders. They exist to
 prove routing and role enforcement work, and they are honest about it — each one
 lists what it will contain rather than showing an empty chart.
 
-Two things are deliberately out of scope for the hackathon build: the portfolio
-step, whose fields are already defined on `StudentProfile` so it needs no schema
-migration, and notifications, which need a delivery channel decision rather than
-more code.
+Notifications remain out of scope: they need a delivery channel decision rather
+than more code.
+
+**What the portfolio step left for later, deliberately:** nothing verifies a
+record. `verificationStatus` exists on every record and every one of them says
+`pending`, because there is no reviewer role, no approval queue and no endpoint
+that promotes one. Building that means deciding who verifies what — an
+academician, the institution, or the issuing body — which is a product question,
+not an implementation gap. Documents also live on the local disk under
+`server/uploads/`, which is correct for a single-process demo and would need an
+object store the moment the API runs on more than one machine; the storage layer is
+isolated in `document.service.js` so that swap touches one file.

@@ -28,6 +28,7 @@ import NotFound from '../pages/NotFound.jsx';
 
 import StudentDashboard from '../pages/dashboards/StudentDashboard.jsx';
 import StudentProfile from '../pages/student/StudentProfile.jsx';
+import StudentPortfolio from '../pages/student/StudentPortfolio.jsx';
 import BrowseOpportunities from '../pages/student/BrowseOpportunities.jsx';
 import OpportunityDetails from '../pages/student/OpportunityDetails.jsx';
 import StartAssessment from '../pages/student/StartAssessment.jsx';
@@ -82,6 +83,13 @@ export default function AppRouter() {
       <Route element={<RoleRoute allowedRoles={[ROLES.STUDENT]} />}>
         <Route path="/student" element={<StudentDashboard />} />
         <Route path="/student/profile" element={<StudentProfile />} />
+
+        {/* The portfolio is its own surface because it is a presentation of the
+            profile, not an editor for it: it reads the skills, goals and summary
+            from /student/profile's data and adds the proof — resume, projects,
+            certifications, experience, achievements — that the profile form does
+            not ask for. */}
+        <Route path="/student/portfolio" element={<StudentPortfolio />} />
         {/* Discovery is student-scoped rather than a route both roles share.
             A shared detail page would put a "Back to opportunities" link in front
             of an industry user that lands them on /unauthorized — so the employer
