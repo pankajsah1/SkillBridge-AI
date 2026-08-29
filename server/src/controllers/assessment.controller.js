@@ -2,11 +2,11 @@
  * Assessment controllers — request in, response out, nothing else.
  *
  * Every handler here does the same three things: read the student from
- * `req.user._id`, call the service, send the envelope. No scoring, no question
+ * `req.user.id`, call the service, send the envelope. No scoring, no question
  * selection, no database queries. RULES.md section 43 puts logic in services, and
  * the practical payoff is that `scoreAnswers` can be tested without Express.
  *
- * `req.user._id` and never a body or param field. There is no route in this file
+ * `req.user.id` and never a body or param field. There is no route in this file
  * that takes a student id, so "assess another student" is not merely blocked, it
  * is unrepresentable.
  */
@@ -44,7 +44,7 @@ const serialise = (assessment) =>
  */
 export const createAssessment = asyncHandler(async (req, res) => {
   const { assessment, resumed } = await startAssessment({
-    studentId: req.user._id,
+    studentId: req.user.id,
     careerRoleId: req.body?.careerRoleId,
     questionCount: req.body?.questionCount,
   });
@@ -63,7 +63,7 @@ export const createAssessment = asyncHandler(async (req, res) => {
 
 /** GET /assessments/latest — the newest submitted result, or null. */
 export const getLatestAssessment = asyncHandler(async (req, res) => {
-  const assessment = await getLatestSubmittedAssessment({ studentId: req.user._id });
+  const assessment = await getLatestSubmittedAssessment({ studentId: req.user.id });
 
   return sendSuccess(res, {
     message: assessment ? 'Latest assessment result retrieved.' : 'No assessment has been completed yet.',
@@ -74,7 +74,7 @@ export const getLatestAssessment = asyncHandler(async (req, res) => {
 /** GET /assessments/active — the paper in progress, or null. */
 export const getActiveAssessment = asyncHandler(async (req, res) => {
   const { assessments } = await listAssessmentsForStudent({
-    studentId: req.user._id,
+    studentId: req.user.id,
     page: 1,
     limit: 1,
   });
@@ -93,7 +93,7 @@ export const getActiveAssessment = asyncHandler(async (req, res) => {
 /** GET /assessments — the student's own history. */
 export const listAssessments = asyncHandler(async (req, res) => {
   const { assessments, total, page, limit } = await listAssessmentsForStudent({
-    studentId: req.user._id,
+    studentId: req.user.id,
     page: req.query.page,
     limit: req.query.limit,
   });
@@ -108,7 +108,7 @@ export const listAssessments = asyncHandler(async (req, res) => {
 /** GET /assessments/:assessmentId */
 export const getAssessment = asyncHandler(async (req, res) => {
   const assessment = await getAssessmentForStudent({
-    studentId: req.user._id,
+    studentId: req.user.id,
     assessmentId: req.params.assessmentId,
   });
 
@@ -121,7 +121,7 @@ export const getAssessment = asyncHandler(async (req, res) => {
 /** POST /assessments/:assessmentId/submit */
 export const submitAssessmentAnswers = asyncHandler(async (req, res) => {
   const { assessment, profileUpdated, updatedSkillCount } = await submitAssessment({
-    studentId: req.user._id,
+    studentId: req.user.id,
     assessmentId: req.params.assessmentId,
     answers: req.body?.answers ?? [],
   });
@@ -137,7 +137,7 @@ export const submitAssessmentAnswers = asyncHandler(async (req, res) => {
 /** DELETE /assessments/:assessmentId — discards an unfinished attempt. */
 export const discardAssessment = asyncHandler(async (req, res) => {
   const assessment = await abandonAssessment({
-    studentId: req.user._id,
+    studentId: req.user.id,
     assessmentId: req.params.assessmentId,
   });
 
