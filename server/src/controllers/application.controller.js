@@ -25,10 +25,18 @@ import {
   updateApplicationStatus,
 } from '../services/application.service.js';
 
-/** POST /api/v1/applications -> 201. */
+/**
+ * POST /api/v1/applications -> 201.
+ *
+ * `applicantRole` COMES FROM THE TOKEN, NEVER THE BODY (Step 7). It is
+ * `req.user.role`, the same verified source as the id beside it. A body field here
+ * would let a student post `applicantRole: 'ACADEMICIAN'` and walk straight through
+ * the audience gate in the service into a faculty programme.
+ */
 export const postApplication = asyncHandler(async (req, res) => {
   const application = await createApplication({
     studentId: req.user.id,
+    applicantRole: req.user.role,
     opportunityId: req.body.opportunityId,
     coverNote: req.body.coverNote,
   });

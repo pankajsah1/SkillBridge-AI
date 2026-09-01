@@ -19,6 +19,12 @@
  * The skills filter is a disclosure rather than 36 checkboxes on permanent display:
  * the catalogue is long enough to bury the other four controls, and skills are the
  * filter people reach for last.
+ *
+ * IT ALSO SERVES THE ACADEMICIAN BROWSE LIST (Step 7), which is why `typeOptions` is
+ * a prop with the student list as its default. The four dimensions are the same four
+ * for an academician reading collaborations and programmes — only the type vocabulary
+ * differs, and that difference is one array. The name stays `StudentFilterBar`
+ * because renaming a working component across the app buys nothing.
  */
 
 import { useId, useMemo, useState } from 'react';
@@ -36,7 +42,14 @@ import Select from '../ui/Select.jsx';
 import { Spinner } from '../ui/Spinner.jsx';
 import SearchInput from './SearchInput.jsx';
 
-const typeOptions = OPPORTUNITY_TYPE_ORDER.map((type) => ({
+/**
+ * The default type vocabulary: the four student types, in the constants' own order.
+ *
+ * Exported so a caller that wants the student list explicitly can name it rather than
+ * relying on the default — and so the academician page's list is visibly a
+ * substitution for this one rather than an addition to it.
+ */
+export const STUDENT_TYPE_OPTIONS = OPPORTUNITY_TYPE_ORDER.map((type) => ({
   value: type,
   label: OPPORTUNITY_TYPE_LABELS[type],
 }));
@@ -85,6 +98,8 @@ export default function StudentFilterBar({
   isLoadingCatalogue = false,
   catalogueError = null,
   disabled = false,
+  /** `[{value, label}]`. Defaults to the four student types. */
+  typeOptions = STUDENT_TYPE_OPTIONS,
 }) {
   const panelId = `skill-filter-${useId()}`;
 

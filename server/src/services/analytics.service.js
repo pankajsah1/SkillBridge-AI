@@ -44,7 +44,7 @@ import StudentProfile from '../models/StudentProfile.js';
 import User from '../models/User.js';
 import AppError from '../utils/AppError.js';
 import { APPLICATION_STATUSES } from '../constants/applications.js';
-import { OPPORTUNITY_STATUSES } from '../constants/opportunities.js';
+import { AUDIENCES, OPPORTUNITY_STATUSES, audienceQuery } from '../constants/opportunities.js';
 import { PROFICIENCY_LEVELS, levelForScore } from '../constants/skills.js';
 
 /** How many rows each table returns. Enough to act on, few enough to read. */
@@ -160,10 +160,23 @@ const skillSupply = (profiles) => {
  * "Live" is the same definition the student-facing browse uses: published and the
  * deadline not yet passed. Counting drafts would let one employer's unpublished
  * wishlist reshape an institution's curriculum advice.
+ *
+ * STUDENT POSTINGS ONLY (Step 7). Every number in this file is one half of a
+ * comparison whose other half is a *student* cohort's skills, so letting faculty
+ * programmes into the demand side would compare an institution's students against
+ * jobs none of them could apply to. Academician demand is a real question, but it
+ * is a different question and belongs in its own report rather than silently
+ * changing what this one means.
  */
 const skillDemand = async () => {
   const rows = await Opportunity.aggregate([
-    { $match: { status: OPPORTUNITY_STATUSES.ACTIVE, deadline: { $gte: new Date() } } },
+    {
+      $match: {
+        audience: audienceQuery(AUDIENCES.STUDENT),
+        status: OPPORTUNITY_STATUSES.ACTIVE,
+        deadline: { $gte: new Date() },
+      },
+    },
     { $unwind: '$requiredSkills' },
     {
       $group: {
@@ -308,6 +321,7 @@ export const getInstitutionAnalytics = async (institutionUserId) => {
   const [demand, livePostings, pipeline] = await Promise.all([
     skillDemand(),
     Opportunity.countDocuments({
+      audience: audienceQuery(AUDIENCES.STUDENT),
       status: OPPORTUNITY_STATUSES.ACTIVE,
       deadline: { $gte: new Date() },
     }),

@@ -19,6 +19,7 @@
 
 import asyncHandler from '../utils/asyncHandler.js';
 import { buildPagination, sendCreated, sendSuccess } from '../utils/apiResponse.js';
+import { audienceForRole } from '../constants/opportunities.js';
 import {
   createOpportunity,
   deleteOpportunity,
@@ -29,11 +30,19 @@ import {
 } from '../services/opportunity.service.js';
 
 /**
- * GET /api/v1/opportunities — student discovery.
+ * GET /api/v1/opportunities — browse, for a student or an academician.
  *
  * Only genuinely open postings, decided by the service. `pagination` rides
  * alongside `data` as a sibling key, which is the envelope TRD.md section 46
  * defines and buildPagination() already produces — no second response format.
+ *
+ * `audience` IS THE ONE VALUE HERE THAT DOES NOT COME FROM THE QUERY STRING. It is
+ * derived from `req.user.role`, so an academician gets faculty programmes and
+ * everyone else gets exactly the student postings they got before Step 7. Adding
+ * it to the destructured list above would let a student send
+ * `?audience=academician` and browse — then apply to — a Faculty Development
+ * Programme, which is why the mapping is a function of the authenticated role and
+ * nothing else.
  */
 export const browseOpportunities = asyncHandler(async (req, res) => {
   const { type, workMode, location, skills, search, page, limit } = req.query;
@@ -46,6 +55,7 @@ export const browseOpportunities = asyncHandler(async (req, res) => {
     search,
     page,
     limit,
+    audience: audienceForRole(req.user.role),
   });
 
   return sendSuccess(res, {

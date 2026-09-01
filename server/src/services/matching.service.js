@@ -1,5 +1,12 @@
 /**
- * Explainable student-opportunity matching.
+ * Explainable applicant-opportunity matching.
+ *
+ * ONE ENGINE, TWO KINDS OF APPLICANT (Step 7). Students are matched to internships
+ * and jobs; academicians are matched to research collaborations, faculty
+ * programmes and consultancies. Both go through the same `calculateMatch` with the
+ * same four weights — the only difference is which profile is loaded and which
+ * audience of postings is considered. `calculateMatch` itself was not changed to
+ * make that work, because it was already pure and already took plain objects.
  *
  * ONE MATCH SCORE, FOUR NAMED PARTS, FIXED WEIGHTS:
  *
@@ -38,11 +45,17 @@
  * `calculateMatch` is pure and takes plain objects, which is how it is tested.
  */
 
+import AcademicianProfile from '../models/AcademicianProfile.js';
 import CareerRole from '../models/CareerRole.js';
 import Opportunity from '../models/Opportunity.js';
 import StudentProfile from '../models/StudentProfile.js';
 import AppError from '../utils/AppError.js';
-import { OPPORTUNITY_STATUSES } from '../constants/opportunities.js';
+import {
+  AUDIENCES,
+  DEFAULT_AUDIENCE,
+  OPPORTUNITY_STATUSES,
+  audienceQuery,
+} from '../constants/opportunities.js';
 import { POPULATE_REFS } from './opportunity.service.js';
 
 /**
@@ -513,8 +526,25 @@ const loadStudentContext = async (studentId) => {
   };
 };
 
-/** The same "live posting" predicate the rest of the app uses. */
-const liveFilter = (now) => ({
+/**
+ * The same "live posting" predicate the rest of the app uses, narrowed to one
+ * audience.
+ *
+ * THE AUDIENCE ARGUMENT IS A STEP 7 REGRESSION GUARD, and it defaults to `student`
+ * so that `getMatchesForStudent` below keeps its exact previous result set without
+ * being touched. Omitting it would have let the eight academician opportunity types
+ * into every student's ranked matches the moment the first faculty programme was
+ * posted — the same leak `buildDiscoveryFilter` guards against in
+ * opportunity.service.js.
+ *
+ * It goes through `audienceQuery` rather than being an equality match because
+ * postings that predate Step 7 store no `audience` key, and `{audience: 'student'}`
+ * would drop every one of them out of the student's matches. That function
+ * explains why at length; the short version is that this is the direction of
+ * failure that would have been invisible on a freshly seeded database.
+ */
+const liveFilter = (now, audience = DEFAULT_AUDIENCE) => ({
+  audience: audienceQuery(audience),
   status: OPPORTUNITY_STATUSES.ACTIVE,
   deadline: { $gte: now },
 });
@@ -577,10 +607,117 @@ export const getMatchForStudent = async ({ studentId, opportunityId } = {}) => {
   return { match: calculateMatch({ opportunity, student }), opportunity, reason: null };
 };
 
+/**
+ * Everything about an academician that matching reads.
+ *
+ * THE SCORING ENGINE IS NOT DUPLICATED AND `calculateMatch` IS NOT MODIFIED. That
+ * function was already pure and already took plain objects, so the whole of
+ * academician expertise matching is this adapter plus the two entry points below.
+ * The alternative — a second scoring algorithm for faculty — would have meant two
+ * definitions of "strong match" on one platform, and a judge asking why an
+ * academician scored 78 would get a different four-part answer than a student.
+ *
+ * `toMatchContext()` on the model builds the shape; the mapping it makes is worth
+ * knowing here:
+ *
+ *   skills            the same {skillId, level, verified, source} rows, because
+ *                     `academicianSkillSchema` was written to the same shape as
+ *                     `studentSkillSchema` for exactly this reason.
+ *   careerInterest    research interests stand in for career goals. An academician
+ *                     saying "industrial defect detection" is saying the same kind
+ *                     of thing a student saying "Computer Vision Engineer" is.
+ *   profileCompletion the academician completion figure, off the same 0-100 scale.
+ *   branch/gradYear   absent, deliberately. They describe an undergraduate, and
+ *                     `coherentEligibility` on Opportunity already refuses to let
+ *                     an academician posting state them — so `scoreEligibility`
+ *                     finds no rules to check and awards its full share, which is
+ *                     the honest answer to "are you eligible?" when the posting
+ *                     names no conditions.
+ *
+ * @returns {Promise<object|null>} null when there is no profile yet
+ */
+const loadAcademicianContext = async (academicianId) => {
+  const profile = await AcademicianProfile.findOne({ userId: academicianId });
+  if (!profile) return null;
+
+  return profile.toMatchContext();
+};
+
+/**
+ * An academician's ranked collaboration and programme matches.
+ *
+ * Identical to `getMatchesForStudent` except for the profile it loads and the
+ * audience it filters on — which is the point. One ranking algorithm, one sort
+ * order, one explanation format across both sides of the portal.
+ *
+ * @param {{academicianId: string, limit?: number}} input
+ * @returns {Promise<{matches: Array<object>, consideredCount: number,
+ *                    reason: string|null}>}
+ */
+export const getMatchesForAcademician = async ({ academicianId, limit = MATCH_LIMIT } = {}) => {
+  const academician = await loadAcademicianContext(academicianId);
+  if (!academician) return { matches: [], consideredCount: 0, reason: 'no-profile' };
+
+  const now = new Date();
+  const docs = await Opportunity.find(liveFilter(now, AUDIENCES.ACADEMICIAN))
+    .populate(POPULATE_REFS)
+    .sort({ deadline: 1 })
+    .limit(CANDIDATE_CAP);
+
+  const scored = docs.map((doc) => {
+    const opportunity = doc.toPublicObject();
+    return { opportunity, match: calculateMatch({ opportunity, student: academician }) };
+  });
+
+  scored.sort(
+    (a, b) =>
+      b.match.matchScore - a.match.matchScore ||
+      new Date(a.opportunity.deadline) - new Date(b.opportunity.deadline) ||
+      a.opportunity.title.localeCompare(b.opportunity.title),
+  );
+
+  return {
+    matches: scored.slice(0, Math.max(1, Number(limit) || MATCH_LIMIT)),
+    consideredCount: scored.length,
+    reason: null,
+  };
+};
+
+/**
+ * One academician against one posting.
+ *
+ * NOT AUDIENCE-GATED, on purpose and unlike the ranked list above. This answers
+ * "how do I fit this?" for a posting the caller already has in front of them, and
+ * the same is true of `getMatchForStudent` — the gate that matters is on *applying*,
+ * which `loadApplicablePosting` in application.service.js enforces. Refusing to
+ * explain a score here would only mean a blank panel on a page the caller can
+ * already read.
+ *
+ * @param {{academicianId: string, opportunityId: string}} input
+ * @returns {Promise<{match: object|null, opportunity: object|null, reason: string|null}>}
+ */
+export const getMatchForAcademician = async ({ academicianId, opportunityId } = {}) => {
+  const doc = await Opportunity.findById(opportunityId).populate(POPULATE_REFS);
+  if (!doc) throw AppError.notFound('That opportunity could not be found.');
+
+  const academician = await loadAcademicianContext(academicianId);
+  const opportunity = doc.toPublicObject();
+
+  if (!academician) return { match: null, opportunity, reason: 'no-profile' };
+
+  return {
+    match: calculateMatch({ opportunity, student: academician }),
+    opportunity,
+    reason: null,
+  };
+};
+
 export default {
   MATCH_WEIGHTS,
   MATCH_LIMIT,
   calculateMatch,
   getMatchesForStudent,
   getMatchForStudent,
+  getMatchesForAcademician,
+  getMatchForAcademician,
 };

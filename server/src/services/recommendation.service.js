@@ -32,7 +32,7 @@
  */
 
 import Opportunity from '../models/Opportunity.js';
-import { OPPORTUNITY_STATUSES } from '../constants/opportunities.js';
+import { AUDIENCES, OPPORTUNITY_STATUSES, audienceQuery } from '../constants/opportunities.js';
 import { getReadinessForStudent } from './readiness.service.js';
 
 /** How many recommendations to return. PHASES.md asks for "top 3-5". */
@@ -123,6 +123,12 @@ const explain = ({ row, roleTitle, demandCount, isTopWeighted }) => {
  * signal about what the market wants, and treating it as zero would understate
  * skills that appear as "nice to have" everywhere.
  *
+ * STUDENT POSTINGS ONLY (Step 7). This number becomes "learn Docker — 12 open
+ * postings want it" on a student's recommendation list, so the postings counted
+ * have to be ones that student could actually apply to. Counting faculty
+ * development programmes here would inflate demand for skills no student can act
+ * on, which is worse than an under-count: it would send them to the wrong course.
+ *
  * A failure here is swallowed by the caller — demand is the lowest-weighted of
  * the three inputs and the other two are enough to rank on.
  *
@@ -131,6 +137,7 @@ const explain = ({ row, roleTitle, demandCount, isTopWeighted }) => {
 export const countSkillDemand = async () => {
   const openPostings = await Opportunity.find(
     {
+      audience: audienceQuery(AUDIENCES.STUDENT),
       status: OPPORTUNITY_STATUSES.ACTIVE,
       deadline: { $gte: new Date() },
     },

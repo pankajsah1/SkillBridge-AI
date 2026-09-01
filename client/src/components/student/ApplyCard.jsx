@@ -20,6 +20,15 @@
  * branch or graduation year can still apply — the match breakdown above already
  * tells them where they stand, and turning that into a hard block would let a
  * profile typo cost someone a job they were qualified for.
+ *
+ * THE SAME CARD SERVES ACADEMICIANS (Step 7). Nothing in the request depends on the
+ * caller's role: POST /applications takes an opportunity id and the server reads the
+ * applicant from the token, and one application per applicant per posting is a
+ * server-side unique index. Only four strings were role-specific — where "all
+ * applications" and "find something else" point, and the two sentences about
+ * measured skill levels, which is true of a student's assessed skills and not of an
+ * academician's self-reported expertise. Those are props defaulted to the student
+ * wording, so the student page is unchanged.
  */
 
 import { useEffect, useState } from 'react';
@@ -48,7 +57,25 @@ const CLOSED_REASON = {
   [AVAILABILITY.DRAFT]: 'This opportunity has not been published yet, so there is nothing to apply to.',
 };
 
-export default function ApplyCard({ opportunityId, availability, matchScore = null }) {
+/**
+ * @param {object} props
+ * @param {string} props.opportunityId
+ * @param {string} props.availability the posting's `availability`, not its `status`
+ * @param {number|null} [props.matchScore]
+ * @param {string} [props.applicationsTo] where "All applications" goes
+ * @param {string} [props.browseTo] where to send someone whose posting has closed
+ * @param {string} [props.submittedMessage] the success banner's body
+ * @param {string} [props.formDescription] the sentence under the form's heading
+ */
+export default function ApplyCard({
+  opportunityId,
+  availability,
+  matchScore = null,
+  applicationsTo = '/student/applications',
+  browseTo = '/student/matches',
+  submittedMessage = 'The company can now see your profile and your measured skill levels alongside it.',
+  formDescription = 'Your profile and your measured skill levels are sent with every application.',
+}) {
   /** The existing application, or null for "has not applied". */
   const [application, setApplication] = useState(null);
   const [isChecking, setIsChecking] = useState(true);
@@ -142,7 +169,7 @@ export default function ApplyCard({ opportunityId, availability, matchScore = nu
               {statusLabel(application.status)}
             </Badge>
             <Link
-              to="/student/applications"
+              to={applicationsTo}
               className="text-sm font-medium text-primary-700 hover:text-primary-800"
             >
               All applications →
@@ -155,7 +182,7 @@ export default function ApplyCard({ opportunityId, availability, matchScore = nu
             <Alert
               variant="success"
               title="Application submitted"
-              message="The company can now see your profile and your measured skill levels alongside it."
+              message={submittedMessage}
             />
           ) : null}
 
@@ -202,7 +229,7 @@ export default function ApplyCard({ opportunityId, availability, matchScore = nu
             'This opportunity is not currently accepting applications.'}
         </p>
         <Link
-          to="/student/matches"
+          to={browseTo}
           className="mt-3 inline-flex text-sm font-medium text-primary-700 hover:text-primary-800"
         >
           See opportunities that fit you →
@@ -213,10 +240,7 @@ export default function ApplyCard({ opportunityId, availability, matchScore = nu
 
   /* Open, not applied: the form. */
   return (
-    <Card
-      title="Apply to this opportunity"
-      description="Your profile and your measured skill levels are sent with every application."
-    >
+    <Card title="Apply to this opportunity" description={formDescription}>
       <form onSubmit={handleSubmit} className="space-y-4" noValidate>
         {submitError ? (
           <Alert

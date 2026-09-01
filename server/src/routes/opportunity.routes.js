@@ -53,6 +53,7 @@ import {
 } from '../controllers/application.controller.js';
 import { validateApplicationQuery } from '../validators/application.validator.js';
 import {
+  validateBrowseQuery,
   validateCreateOpportunity,
   validateOpportunityQuery,
   validateUpdateOpportunity,
@@ -64,9 +65,16 @@ export const opportunityRoutes = Router();
 // each one, so a route added later cannot accidentally ship unprotected.
 opportunityRoutes.use(authenticate);
 
+/**
+ * GET is deliberately not role-gated: students and academicians both browse here
+ * and the service scopes the results to the caller's audience, so there is nothing
+ * a role check would add except a second place to keep the list of roles.
+ * `validateBrowseQuery` is the audience-aware variant — it is what turns
+ * "?type=fdp" from a student into a named 400 rather than a silently empty page.
+ */
 opportunityRoutes
   .route('/')
-  .get(validateOpportunityQuery, browseOpportunities)
+  .get(validateBrowseQuery, browseOpportunities)
   .post(allowRoles(ROLES.INDUSTRY), validateCreateOpportunity, postOpportunity);
 
 opportunityRoutes

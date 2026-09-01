@@ -110,6 +110,15 @@ export default function MatchBreakdown({
   /** Rendered when there is no profile to match on yet. */
   emptyState = null,
   action,
+  /**
+   * The sentence under the heading. Defaults to the student wording.
+   *
+   * A prop because the academician surface scores the same four parts against
+   * different things — research interests rather than career goals — and telling an
+   * academician their score counted "career goals" would name a field their profile
+   * does not have. The numbers are identical either way; only this sentence differs.
+   */
+  description = 'Scored on your skills, your career goals, the eligibility stated, and how complete your profile is.',
 }) {
   if (isLoading) {
     return (
@@ -140,7 +149,7 @@ export default function MatchBreakdown({
   return (
     <Card
       title="Your match"
-      description="Scored on your skills, your career goals, the eligibility stated, and how complete your profile is."
+      description={description}
       action={
         <span className="flex flex-wrap items-center gap-3">
           <Badge variant={style.variant} size="md">

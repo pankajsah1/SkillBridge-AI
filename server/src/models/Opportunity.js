@@ -1,5 +1,24 @@
 /**
- * Opportunity model — a role an industry partner posts for students.
+ * Opportunity model — something an industry partner posts, for students or for
+ * academicians.
+ *
+ * STEP 7 WIDENED WHAT THIS MODEL CAN SAY, AND CHANGED NOTHING IT ALREADY SAID.
+ * Two fields carry the whole extension: `audience` (`student` by default, so every
+ * pre-Step-7 document reads back as exactly what it was) and eight new `type`
+ * values for faculty programmes and industry-academia collaboration. A Faculty
+ * Development Programme, a research collaboration and a guest lecture have an
+ * owner, a title, a description, a location, a work mode, required skills, a
+ * deadline, places and a draft/active/closed lifecycle — this schema, field for
+ * field — so a second collection would have duplicated all of it and then needed
+ * its own service, controller, validator, application model and matching path.
+ *
+ * THE DEFAULT MAKES READS SAFE, NOT QUERIES. Mongoose fills `audience` in when it
+ * hydrates a document that lacks the key, so no backfill is needed for anything to
+ * *read* correctly — but a filter of `{audience: 'student'}` is sent to MongoDB
+ * verbatim and would match none of those legacy documents. Every query in the
+ * codebase therefore goes through `audienceQuery()` in constants/opportunities.js,
+ * which tolerates the missing key. That function is the reason "no migration" is
+ * true rather than nearly true.
  *
  * Relationship design (his section 14 asks for this to be deliberate):
  *
@@ -17,12 +36,17 @@
  * phase would need a destructive rewrite. So: no second skill list, no free-text
  * skill names, ever.
  *
+ * THAT DECISION IS WHAT MADE STEP 7 CHEAP. `AcademicianProfile.skills` points at
+ * the same catalogue with the same 0-100 level, so scoring a professor against a
+ * research collaboration is the same subtraction over the same ids, and the
+ * existing matching engine needed no changes at all to do it.
+ *
  * WHY THE OWNER IS A BARE REFERENCE. Only `industryId` is stored — never a copied
  * company name or email. The industry's display name lives on User and is
  * populated on read, so renaming a company updates every posting at once and
  * there is no second copy to drift. It is also the ownership boundary his
- * section 3 requires: this field is always set from `req.user._id` and never from
- * the request body, so "post as someone else" is not expressible.
+ * section 3 requires: this field is always set from the authenticated user and
+ * never from the request body, so "post as someone else" is not expressible.
  *
  * WHY EMBED THE SKILL REQUIREMENTS. A requirement has no life of its own — it is
  * meaningless without the opportunity it belongs to and is always read and
@@ -30,23 +54,27 @@
  * reason. The skill *definition* is shared and normalised; the *opportunity's
  * relationship to it* (level, weight) is embedded. Same split as StudentProfile.
  *
- * HEADROOM FOR LATER PHASES, without a rewrite: an Application collection will
- * reference `opportunityId` and `studentId` and needs nothing added here; the
- * matching engine reads `requiredSkills` and `importanceWeight`, which already
- * exist; candidate ranking sorts applications, not opportunities. Nothing in this
- * schema has to change for any of that.
+ * TWO INVARIANTS ARE ENFORCED BY HOOKS BELOW rather than by field types, because
+ * neither is expressible as one: a posting's `type` must belong to its `audience`
+ * (`coherentAudience`), and student eligibility rules cannot be set on an
+ * academician posting (`coherentEligibility`).
  */
 
 import mongoose from 'mongoose';
 
 import { SKILL_LEVEL_MAX, SKILL_LEVEL_MIN } from '../constants/skills.js';
 import {
+  AUDIENCE_VALUES,
+  AUDIENCES,
+  DEFAULT_AUDIENCE,
   DEFAULT_OPPORTUNITY_STATUS,
   OPPORTUNITY_LIMITS,
   OPPORTUNITY_STATUS_VALUES,
   OPPORTUNITY_TYPE_VALUES,
   WORK_MODE_VALUES,
   availabilityFor,
+  isTypeAllowedForAudience,
+  typeLabel,
 } from '../constants/opportunities.js';
 
 /**
@@ -165,6 +193,26 @@ const opportunitySchema = new mongoose.Schema(
       ref: 'User',
       required: [true, 'An opportunity must belong to an industry user'],
       index: true, // TRD.md section 16: industryId -> Index
+    },
+
+    /**
+     * Who this posting is for (Step 7).
+     *
+     * DEFAULTS TO STUDENT, WHICH IS WHY THIS FIELD NEEDED NO MIGRATION. Every
+     * opportunity written before Step 7 was student-targeted by construction —
+     * there was no other kind — so a default of `student` makes each of those
+     * documents correct exactly as it already sits on disk. Mongoose also applies
+     * the default when reading a document that lacks the path, so even a posting
+     * created by the pre-Step-7 seed answers `student` without being rewritten.
+     *
+     * Indexed because it is now part of the discovery query on both surfaces: the
+     * student browse filter and the academician one differ only in this value.
+     */
+    audience: {
+      type: String,
+      enum: { values: AUDIENCE_VALUES, message: '{VALUE} is not a valid audience' },
+      default: DEFAULT_AUDIENCE,
+      index: true,
     },
 
     title: {
@@ -329,6 +377,16 @@ const opportunitySchema = new mongoose.Schema(
  */
 opportunitySchema.index({ status: 1, deadline: 1 });
 
+/**
+ * The Step 7 discovery query, which is the one above plus an audience clause.
+ *
+ * Declared separately rather than replacing the index above: `{status, deadline}`
+ * still serves every query that does not care about audience (the recruitment
+ * summary, the analytics aggregates), and a compound index cannot be used to
+ * satisfy a query that skips its leading field.
+ */
+opportunitySchema.index({ audience: 1, status: 1, deadline: 1 });
+
 /** "Newest first" within one owner's list — the my-opportunities default sort. */
 opportunitySchema.index({ industryId: 1, createdAt: -1 });
 
@@ -422,10 +480,51 @@ opportunitySchema.pre('validate', function noConflictingSkills(next) {
 });
 
 /**
+ * Rejects a type that does not belong to the stated audience.
+ *
+ * WHY THIS HOOK IS THE REAL GUARANTEE. Step 7 put twelve values in one `type`
+ * enum, four of them student-facing and eight academician-facing. The enum alone
+ * would happily accept `{audience: 'student', type: 'fdp'}` — a Faculty
+ * Development Programme on a student's browse page — or
+ * `{audience: 'academician', type: 'job'}`, which is an entry-level job advertised
+ * to professors. Neither is a posting anybody meant to write, and both would be
+ * invisible bugs rather than loud ones: the document saves, the query returns it,
+ * and only a reader notices.
+ *
+ * The validator layer checks the same pair first so a bad request gets a named
+ * 400. This is the backstop that also covers the seed and any future bulk import.
+ *
+ * `invalidate()` rather than `next(new Error(...))`, for the reasons spelled out
+ * on `noConflictingSkills` above: a plain Error is masked as a 500 and swallows
+ * every other field error.
+ */
+opportunitySchema.pre('validate', function coherentAudience(next) {
+  const audience = this.audience ?? AUDIENCES.STUDENT;
+
+  /* A missing or misspelled type is the enum's complaint to make, not this
+     hook's — reporting both would put two messages on one field. */
+  if (this.type && !isTypeAllowedForAudience(this.type, audience)) {
+    this.invalidate(
+      'type',
+      `A ${typeLabel(this.type).toLowerCase()} cannot be offered to ${audience === AUDIENCES.STUDENT ? 'students' : 'academicians'}.`,
+    );
+  }
+
+  return next();
+});
+
+/**
  * Rejects a graduation-year window that runs backwards.
  *
  * Separate hook so the failure is registered against the right path rather than
  * being lumped in with the skill checks.
+ *
+ * STUDENT ELIGIBILITY ON AN ACADEMICIAN POSTING is also refused here. Branches
+ * and graduation years describe an undergraduate; stating them on a Faculty
+ * Development Programme would either be ignored (making the posting lie about who
+ * may attend) or enforced (excluding every professor who graduated before the
+ * window). The `notes` field stays available for real academician conditions like
+ * "minimum three years' teaching experience", which is why it is not rejected.
  */
 opportunitySchema.pre('validate', function coherentEligibility(next) {
   const { minGraduationYear: min, maxGraduationYear: max } = this.eligibility ?? {};
@@ -435,6 +534,24 @@ opportunitySchema.pre('validate', function coherentEligibility(next) {
       'eligibility.maxGraduationYear',
       'The earliest graduation year cannot be after the latest.',
     );
+  }
+
+  if (this.audience === AUDIENCES.ACADEMICIAN) {
+    const branches = this.eligibility?.branches ?? [];
+
+    if (branches.length > 0) {
+      this.invalidate(
+        'eligibility.branches',
+        'Academic branches describe students and cannot be set on an academician opportunity.',
+      );
+    }
+
+    if (min != null || max != null) {
+      this.invalidate(
+        'eligibility.minGraduationYear',
+        'Graduation years describe students and cannot be set on an academician opportunity.',
+      );
+    }
   }
 
   return next();
@@ -508,6 +625,7 @@ opportunitySchema.methods.toPublicObject = function toPublicObject() {
     id: this._id.toString(),
     industryId: refId(owner),
     industry: ownerPopulated ? { id: refId(owner), name: owner.name } : null,
+    audience: this.audience,
     title: this.title,
     type: this.type,
     description: this.description,

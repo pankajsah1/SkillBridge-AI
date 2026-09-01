@@ -19,6 +19,13 @@
  * anchor. A key with no known destination still renders — it just shows the
  * server's advice without a link, which is a soft landing if a ninth section is
  * added server-side before this map learns about it.
+ *
+ * THE SAME PANEL SERVES THE ACADEMICIAN PROFILE. Its completion payload has exactly
+ * this shape — `{completionPercentage, completedSections, missingSections}` with the
+ * same `{key, label, weight, action}` entries — so the only role-specific parts are
+ * the heading, the encouraging sentence and the destination map. Those are props with
+ * the student's values as defaults, which is what lets one panel serve both pages
+ * without the student page changing at all.
  */
 
 import { Link } from 'react-router-dom';
@@ -92,7 +99,24 @@ function AnchorAction({ to, children }) {
   );
 }
 
-export default function PortfolioCompletionPanel({ completion }) {
+/**
+ * @param {object} props
+ * @param {object|null} props.completion the server's completion object, unmodified
+ * @param {string} [props.id] anchor id, so a page can link to this panel
+ * @param {string} [props.title]
+ * @param {string} [props.description]
+ * @param {Record<string, {to: string, label: string, isAnchor?: boolean}>} [props.destinations]
+ *   section key -> where to go and what to call the link
+ * @param {(percentage: number) => string} [props.message] the sentence above the bar
+ */
+export default function PortfolioCompletionPanel({
+  completion,
+  id = 'portfolio-completion',
+  title = 'Portfolio completion',
+  description = 'Worked out by the server from what you have filled in — the same number employers see.',
+  destinations = DESTINATIONS,
+  message = messageFor,
+}) {
   // No completion object means no profile yet. The page shows a create prompt in
   // that case, so a 0% panel here would just be a second way of saying the same
   // thing.
@@ -103,13 +127,9 @@ export default function PortfolioCompletionPanel({ completion }) {
   const isComplete = missing.length === 0;
 
   return (
-    <Card
-      id="portfolio-completion"
-      title="Portfolio completion"
-      description="Worked out by the server from what you have filled in — the same number employers see."
-    >
+    <Card id={id} title={title} description={description}>
       <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <p className="text-sm text-slate-600">{messageFor(percentage)}</p>
+        <p className="text-sm text-slate-600">{message(percentage)}</p>
         <span
           className={`text-2xl font-semibold tabular-nums ${
             isComplete ? 'text-success-600' : 'text-primary-600'
@@ -139,7 +159,7 @@ export default function PortfolioCompletionPanel({ completion }) {
             {[...missing]
               .sort((a, b) => (b.weight ?? 0) - (a.weight ?? 0))
               .map((section) => {
-                const destination = DESTINATIONS[section.key];
+                const destination = destinations[section.key];
 
                 return (
                   <li

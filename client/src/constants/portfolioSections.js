@@ -74,7 +74,7 @@ export const toDateInputValue = (value) => {
  * therefore be editing the form for the whole page. Frozen, that assignment throws
  * in development (ES modules are strict mode) instead of quietly rewriting the UI.
  */
-const deepFreeze = (value) => {
+export const deepFreeze = (value) => {
   if (value && typeof value === 'object' && !Object.isFrozen(value)) {
     Object.freeze(value);
     Object.values(value).forEach(deepFreeze);

@@ -27,11 +27,15 @@ import AppError from '../utils/AppError.js';
 import Opportunity from '../models/Opportunity.js';
 import Skill from '../models/Skill.js';
 import {
+  DEFAULT_AUDIENCE,
+  DURATION_RELEVANT_TYPES,
   OPPORTUNITY_PAGE,
   OPPORTUNITY_STATUSES,
   STATUS_TRANSITIONS,
+  audienceQuery,
   canTransition,
   hasMeaningfulDuration,
+  typeLabel,
 } from '../constants/opportunities.js';
 import {
   EDITABLE_OPPORTUNITY_FIELDS,
@@ -234,6 +238,10 @@ const applyWritableFields = (doc, body) => {
  *   - type changed, stale duration left on the stored document -> cleared. The
  *     employer cannot see a duration field for a job, so a 400 here would be an
  *     unfixable dead end; clearing it is the only sane repair.
+ *
+ * The message lists DURATION_RELEVANT_TYPES rather than naming three types in
+ * prose. Step 7 widened that list from three to seven, and a hardcoded sentence
+ * would now be telling employers something untrue.
  */
 const reconcileDuration = (doc, body, { typeChanged }) => {
   if (hasMeaningfulDuration(doc.type)) return;
@@ -244,7 +252,7 @@ const reconcileDuration = (doc, body, { typeChanged }) => {
     throw AppError.badRequest('That opportunity type does not have a duration.', [
       {
         field: 'durationMonths',
-        message: 'Only internships, apprenticeships and projects have a duration.',
+        message: `Only these types have a duration: ${DURATION_RELEVANT_TYPES.map(typeLabel).join(', ')}.`,
       },
     ]);
   }
@@ -313,6 +321,14 @@ const reload = (id) => Opportunity.findById(id).populate(POPULATE_REFS);
  *
  * `industryId` comes from the authenticated caller and from nowhere else. There
  * is no parameter through which a different owner could be supplied.
+ *
+ * `audience` IS SET HERE AND NEVER AGAIN. It is handled explicitly rather than
+ * through applyWritableFields for the same reason `status` is: it is not an
+ * ordinary field. Once a posting has collected applications, changing who it is
+ * aimed at would leave academicians attached to a student internship, so the
+ * update path rejects it outright (see the update validator) and this is the one
+ * place it can be chosen. Omitted means `student`, which is what every posting
+ * created before Step 7 was.
  */
 export const createOpportunity = async (ownerId, body = {}) => {
   const requiredSkills = normaliseSkillList(body.requiredSkills ?? []);
@@ -321,6 +337,8 @@ export const createOpportunity = async (ownerId, body = {}) => {
   await assertSkillsExist({ requiredSkills, preferredSkills });
 
   const opportunity = new Opportunity({ industryId: ownerId });
+
+  if (body.audience) opportunity.audience = body.audience;
 
   applyWritableFields(opportunity, {
     ...body,
@@ -493,7 +511,7 @@ export const listOwnedOpportunities = async (ownerId, query = {}, now = new Date
 /* -------------------------------------------------------------- student reads */
 
 /**
- * Builds the student browse filter.
+ * Builds the browse filter for a reader.
  *
  * THE AVAILABILITY RULE, and it is enforced here rather than in the client: only
  * `status: active` with a deadline that has not passed. A student is never shown
@@ -501,14 +519,33 @@ export const listOwnedOpportunities = async (ownerId, query = {}, now = new Date
  * stored as end-of-day, `$gte: now` includes a posting closing today — which is
  * exactly what "the deadline is today" should mean.
  *
+ * THE AUDIENCE CLAUSE IS THE STEP 7 REGRESSION GUARD. Without it, the eight
+ * academician types added to the type enum would start appearing on the student
+ * browse page the moment the first Faculty Development Programme was posted —
+ * a regression dressed as a feature. It defaults to `student`, and it goes through
+ * `audienceQuery` rather than being an equality match, because a posting created
+ * before Step 7 has no `audience` key stored at all and an equality match would
+ * hide every one of them. See that function for the full reasoning.
+ *
+ * `audience` IS NOT A QUERY PARAMETER. It arrives in this options object from the
+ * controller, which derives it from `req.user.role` and nothing else — the
+ * controller destructures query parameters individually, so `?audience=academician`
+ * cannot reach this function. That is deliberate: which audience you belong to is
+ * a fact about your account, not a filter you get to pick, and letting a student
+ * browse faculty programmes would let them apply to one.
+ *
  * `search` is a case-insensitive regex across title, description and location
  * rather than a `$text` index, because `$text` only matches whole words: a
  * student typing "front" would get nothing for "Frontend Developer", which is not
  * what a search box may do. Honest about its scale rather than dressed up as
  * search infrastructure.
  */
-const buildDiscoveryFilter = ({ type, workMode, location, skills, search } = {}, now) => {
+const buildDiscoveryFilter = (
+  { type, workMode, location, skills, search, audience = DEFAULT_AUDIENCE } = {},
+  now,
+) => {
   const filter = {
+    audience: audienceQuery(audience),
     status: OPPORTUNITY_STATUSES.ACTIVE,
     deadline: { $gte: now },
   };
@@ -560,15 +597,21 @@ const buildDiscoveryFilter = ({ type, workMode, location, skills, search } = {},
 };
 
 /**
- * GET /opportunities — student discovery.
+ * GET /opportunities — browse, for a student or an academician.
  *
- * Sorted by deadline ascending: the most urgent thing a student could act on
+ * ONE ENDPOINT FOR BOTH AUDIENCES, not two. The caller's role picks the audience
+ * (see buildDiscoveryFilter), and everything else — availability, filters, search,
+ * paging, sort — is identical for both, so a second copy of this function would be
+ * the duplicate API his standing rules forbid.
+ *
+ * Sorted by deadline ascending: the most urgent thing the reader could act on
  * comes first, which is more useful than newest-first for a list whose entries
  * all expire. `createdAt` breaks ties so the order is stable across pages.
  *
  * No match score, no personalised ranking, no recommendation logic — his section
  * 5 defers all three, and a "score" computed here would have to be thrown away
- * when the real matching engine arrives.
+ * when the real matching engine arrives. (It has since arrived and lives in
+ * matching.service.js, which is a separate endpoint for exactly that reason.)
  */
 export const listOpenOpportunities = async (query = {}, now = new Date()) => {
   const { page, limit, skip } = resolvePaging(query);
@@ -589,6 +632,42 @@ export const listOpenOpportunities = async (query = {}, now = new Date()) => {
     page,
     limit,
   };
+};
+
+/**
+ * How many live postings each type currently has, for one audience.
+ *
+ * WHY THIS LIVES HERE AND NOT IN THE DASHBOARD THAT WANTS IT. The academician
+ * dashboard needs three numbers — open postings, collaboration offers, upcoming
+ * programmes — and all three are the same query with a different type set. Writing
+ * that query in academician.service.js would mean a second definition of "a live
+ * posting", and the moment the availability rule changed (say, a grace period after
+ * the deadline) the browse list and the dashboard count would disagree. So the
+ * *query* stays in the module that owns Opportunity reads, and the *grouping* is
+ * the caller's business: this returns raw per-type counts, and
+ * `isCollaborationType` / `isProgrammeType` in the constants decide what to add up.
+ * Neither piece of knowledge gets copied.
+ *
+ * `buildDiscoveryFilter` supplies the base, so availability and the audience clause
+ * are literally the same code the browse list runs — including `audienceQuery`'s
+ * null handling for postings created before the field existed.
+ *
+ * One aggregation rather than a count per type: twelve `countDocuments` calls to
+ * populate three cards is a lot of round-trips for a page that opens on every login.
+ *
+ * @param {{audience?: string}} options — audience derived from the caller's role
+ * @returns {Promise<{total: number, byType: Record<string, number>}>}
+ */
+export const countOpenByType = async ({ audience = DEFAULT_AUDIENCE } = {}, now = new Date()) => {
+  const grouped = await Opportunity.aggregate([
+    { $match: buildDiscoveryFilter({ audience }, now) },
+    { $group: { _id: '$type', count: { $sum: 1 } } },
+  ]);
+
+  const byType = grouped.reduce((counts, row) => ({ ...counts, [row._id]: row.count }), {});
+  const total = grouped.reduce((sum, row) => sum + row.count, 0);
+
+  return { total, byType };
 };
 
 /**
@@ -626,5 +705,6 @@ export default {
   deleteOpportunity,
   listOwnedOpportunities,
   listOpenOpportunities,
+  countOpenByType,
   getOpportunityForViewer,
 };

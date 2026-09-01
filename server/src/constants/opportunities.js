@@ -16,24 +16,242 @@
  * answer in the codebase rather than one per call site.
  */
 
+import { ROLES } from './roles.js';
+
 /**
- * Opportunity types, verbatim from TRD.md section 16.
+ * Who a posting is aimed at (Step 7).
  *
- * PHASES.md PHASE 3 lists six kinds (Internship, Entry-Level Job,
- * Apprenticeship, Live Project, Workshop, Training Program) and adds "Additional
- * types can be added later." TRD.md section 16 collapses those to four values
- * and is the primary technical authority, so these four are what the enum
- * accepts. Workshops and training programmes are Learning Programs in PHASES.md
- * PHASE 7.2 — a different collection, not a fifth value here.
+ * WHY THIS FIELD EXISTS AND WHY IT DEFAULTS TO STUDENT. Before Step 7 every
+ * opportunity was implicitly student-targeted — the model carried no audience
+ * field at all, and `eligibility` is student-shaped (branches, graduation years).
+ * Adding an explicit audience with `student` as the default means every document
+ * already in the database is correct as it stands: no migration, no backfill, and
+ * a posting created by code that predates this field still lands in exactly the
+ * same place. That property is the whole reason the default is not null.
+ *
+ * ONE FIELD, NOT A LIST OF ELIGIBLE ROLES. The Step 7 brief offers
+ * `targetAudience`, `eligibleRoles` or an equivalent. A single value was chosen
+ * because the two audiences want genuinely different postings — a Faculty
+ * Development Programme is not an internship a student could also take — and a
+ * multi-role array would invite postings claiming both while stating student
+ * eligibility rules that mean nothing to a professor. If a genuinely
+ * cross-audience posting is ever needed, adding a third `both` value here is a
+ * one-line change that every existing query already reads.
+ *
+ * THE THREE PLACES THAT MUST FILTER ON THIS, or student surfaces start showing
+ * faculty programmes: `buildDiscoveryFilter` in `opportunity.service.js`,
+ * `liveFilter` in `matching.service.js`, and the two demand queries in
+ * `recommendation.service.js` and `analytics.service.js`. All of them do, and all
+ * of them go through `audienceQuery` below.
+ */
+export const AUDIENCES = Object.freeze({
+  STUDENT: 'student',
+  ACADEMICIAN: 'academician',
+});
+
+export const AUDIENCE_VALUES = Object.freeze(Object.values(AUDIENCES));
+
+/** Existing documents predate the field, so the default must be what they were. */
+export const DEFAULT_AUDIENCE = AUDIENCES.STUDENT;
+
+export const isValidAudience = (value) => AUDIENCE_VALUES.includes(value);
+
+/**
+ * The `audience` clause to put in a query — NOT the bare value.
+ *
+ * THIS FUNCTION IS THE "NO MIGRATION" CLAIM ABOVE, and without it that claim
+ * would be false in the one direction that matters. Mongoose applies a schema
+ * default when it *hydrates* a document, so reading a pre-Step-7 posting gives
+ * back `audience: 'student'` — but it does not rewrite *queries*. A filter of
+ * `{ audience: 'student' }` is sent to MongoDB verbatim and matches only
+ * documents that actually store that key, so every posting created before this
+ * field existed would silently vanish from the student browse page, the student's
+ * ranked matches and the institution's demand figures. That is a far worse
+ * regression than the leak the audience filter was added to prevent, and it is
+ * invisible in testing against a freshly seeded database, where every document
+ * has the field.
+ *
+ * `{ $in: ['student', null] }` is the fix: in MongoDB a `null` in `$in` matches
+ * documents whose field is null *and* documents missing the field entirely. So a
+ * legacy posting reads as a student posting in a query exactly as it already does
+ * in memory, and the two layers finally agree.
+ *
+ * The academician branch needs no such tolerance — no document can predate a value
+ * that has never existed before now — and stays an equality match so it can use
+ * the `{ audience, status, deadline }` index most directly.
+ *
+ * @param {string} [audience] One of AUDIENCE_VALUES.
+ * @returns {object|string} A value to assign to the `audience` key of a filter.
+ */
+export const audienceQuery = (audience = DEFAULT_AUDIENCE) =>
+  audience === DEFAULT_AUDIENCE ? { $in: [DEFAULT_AUDIENCE, null] } : audience;
+
+/**
+ * Which audience's postings a given role browses.
+ *
+ * WHY THIS LIVES IN THE CONSTANTS AND NOT IN THE CONTROLLER. `GET /opportunities`
+ * serves both audiences from one handler, and the audience has to come from the
+ * authenticated role rather than from a query parameter — otherwise a student
+ * could pass `?audience=academician`, browse faculty programmes and apply to one.
+ * Putting the mapping here makes it one named, testable function instead of an
+ * inline ternary that a second call site would quietly copy and get wrong.
+ *
+ * EVERY OTHER ROLE FALLS BACK TO STUDENT, which is exactly what industry and
+ * institution readers saw before Step 7 — the endpoint's behaviour for them is
+ * unchanged, which is what makes this extension rather than a rewrite.
+ *
+ * @param {string} role A value from constants/roles.js.
+ * @returns {'student'|'academician'}
+ */
+export const audienceForRole = (role) =>
+  role === ROLES.ACADEMICIAN ? AUDIENCES.ACADEMICIAN : AUDIENCES.STUDENT;
+
+/**
+ * Opportunity types.
+ *
+ * The first four are verbatim from TRD.md section 16. PHASES.md PHASE 3 lists six
+ * kinds (Internship, Entry-Level Job, Apprenticeship, Live Project, Workshop,
+ * Training Program) and adds "Additional types can be added later." TRD.md
+ * section 16 collapsed those to four, and those four remain exactly what a
+ * student-facing posting may be.
+ *
+ * STEP 7 ADDS EIGHT ACADEMICIAN-FACING TYPES to the same enum rather than
+ * creating a parallel collection. The reasoning, since an earlier comment here
+ * argued the other way for workshops:
+ *
+ *   A Faculty Development Programme has an owner, a title, a description, a
+ *   location, a work mode, required skills, a deadline, a number of places and a
+ *   draft/active/closed lifecycle. That is this schema, field for field. A second
+ *   collection would duplicate all of it, then need its own service, controller,
+ *   validator, application model and matching path — and the Step 7 brief
+ *   explicitly forbids exactly that: "Do not blindly add all of these as separate
+ *   models. Prefer extending the existing opportunity model."
+ *
+ *   The earlier note reserved workshops for a separate Learning Programs
+ *   collection (PHASES.md PHASE 7.2). That collection was never built, and
+ *   PHASE 7.2's learning programmes are a *student* concept — courses a student
+ *   takes to close a skill gap. A workshop an industry partner runs *for faculty*
+ *   is a different thing that happens to share a word. Nothing is being
+ *   contradicted; the Learning Program collection remains available for its own
+ *   purpose if a later step builds it.
+ *
+ * WHICH TYPES ARE LEGAL FOR WHICH AUDIENCE is enforced by `TYPES_BY_AUDIENCE`
+ * below and by a model hook, so "an internship for academicians" cannot be
+ * created even though both values exist in one enum.
  */
 export const OPPORTUNITY_TYPES = Object.freeze({
+  /* Student-facing — TRD.md section 16. */
   INTERNSHIP: 'internship',
   JOB: 'job',
   APPRENTICESHIP: 'apprenticeship',
   PROJECT: 'project',
+
+  /* Academician-facing — Step 7. */
+  FACULTY_INTERNSHIP: 'faculty_internship',
+  INDUSTRIAL_TRAINING: 'industrial_training',
+  FDP: 'fdp',
+  WORKSHOP: 'workshop',
+  MENTORSHIP: 'mentorship',
+  RESEARCH_COLLABORATION: 'research_collaboration',
+  CONSULTANCY: 'consultancy',
+  GUEST_LECTURE: 'guest_lecture',
 });
 
 export const OPPORTUNITY_TYPE_VALUES = Object.freeze(Object.values(OPPORTUNITY_TYPES));
+
+/**
+ * Which types each audience may be offered.
+ *
+ * THIS IS WHAT KEEPS ONE ENUM FROM BECOMING A MESS. The model validates a
+ * posting's `type` against its `audience` through this table, so the four
+ * original values stay exactly as available to students as they were, and none of
+ * the eight new ones can appear on a student's browse page even if someone posts
+ * one by hand.
+ *
+ * The student list is unchanged from what the enum contained before Step 7 —
+ * asserted by the Step 7 verification script, because silently widening what a
+ * student can be shown would be a regression dressed as a feature.
+ */
+export const TYPES_BY_AUDIENCE = Object.freeze({
+  [AUDIENCES.STUDENT]: Object.freeze([
+    OPPORTUNITY_TYPES.INTERNSHIP,
+    OPPORTUNITY_TYPES.JOB,
+    OPPORTUNITY_TYPES.APPRENTICESHIP,
+    OPPORTUNITY_TYPES.PROJECT,
+  ]),
+  [AUDIENCES.ACADEMICIAN]: Object.freeze([
+    OPPORTUNITY_TYPES.FACULTY_INTERNSHIP,
+    OPPORTUNITY_TYPES.INDUSTRIAL_TRAINING,
+    OPPORTUNITY_TYPES.FDP,
+    OPPORTUNITY_TYPES.WORKSHOP,
+    OPPORTUNITY_TYPES.MENTORSHIP,
+    OPPORTUNITY_TYPES.RESEARCH_COLLABORATION,
+    OPPORTUNITY_TYPES.CONSULTANCY,
+    OPPORTUNITY_TYPES.GUEST_LECTURE,
+  ]),
+});
+
+/** True when this type may be offered to this audience. */
+export const isTypeAllowedForAudience = (type, audience) =>
+  (TYPES_BY_AUDIENCE[audience] ?? []).includes(type);
+
+/**
+ * Academician-facing types split by what the person is actually being asked to
+ * do, because the dashboard asks two different questions.
+ *
+ * COLLABORATION is a two-way working relationship with a company: joint research,
+ * paid consultancy, mentoring their people, going in to lecture. The academician
+ * brings expertise and the company brings a problem.
+ *
+ * PROGRAMME is something the academician attends to learn: an FDP, a workshop, a
+ * stint inside a company, industrial training. The company brings the expertise.
+ *
+ * The distinction is the difference between "Collaboration Opportunities" and
+ * "Upcoming Programs" on the Step 7 dashboard, and between "what can I offer?"
+ * and "what can I gain?" for the person reading it. Every academician type
+ * belongs to exactly one of the two — asserted by the verification script, so a
+ * ninth type added later cannot quietly fall through both cards.
+ */
+export const COLLABORATION_TYPES = Object.freeze([
+  OPPORTUNITY_TYPES.MENTORSHIP,
+  OPPORTUNITY_TYPES.RESEARCH_COLLABORATION,
+  OPPORTUNITY_TYPES.CONSULTANCY,
+  OPPORTUNITY_TYPES.GUEST_LECTURE,
+]);
+
+export const PROGRAMME_TYPES = Object.freeze([
+  OPPORTUNITY_TYPES.FACULTY_INTERNSHIP,
+  OPPORTUNITY_TYPES.INDUSTRIAL_TRAINING,
+  OPPORTUNITY_TYPES.FDP,
+  OPPORTUNITY_TYPES.WORKSHOP,
+]);
+
+export const isCollaborationType = (type) => COLLABORATION_TYPES.includes(type);
+export const isProgrammeType = (type) => PROGRAMME_TYPES.includes(type);
+
+/**
+ * Human labels for every type.
+ *
+ * Server-side because error messages use them ("a research collaboration cannot
+ * be offered to students"). The client keeps its own copy for rendering, the same
+ * split every other constants pair in this project uses.
+ */
+export const OPPORTUNITY_TYPE_LABELS = Object.freeze({
+  [OPPORTUNITY_TYPES.INTERNSHIP]: 'Internship',
+  [OPPORTUNITY_TYPES.JOB]: 'Job',
+  [OPPORTUNITY_TYPES.APPRENTICESHIP]: 'Apprenticeship',
+  [OPPORTUNITY_TYPES.PROJECT]: 'Live project',
+  [OPPORTUNITY_TYPES.FACULTY_INTERNSHIP]: 'Faculty internship',
+  [OPPORTUNITY_TYPES.INDUSTRIAL_TRAINING]: 'Industrial training',
+  [OPPORTUNITY_TYPES.FDP]: 'Faculty Development Programme',
+  [OPPORTUNITY_TYPES.WORKSHOP]: 'Workshop',
+  [OPPORTUNITY_TYPES.MENTORSHIP]: 'Mentorship',
+  [OPPORTUNITY_TYPES.RESEARCH_COLLABORATION]: 'Research collaboration',
+  [OPPORTUNITY_TYPES.CONSULTANCY]: 'Consultancy',
+  [OPPORTUNITY_TYPES.GUEST_LECTURE]: 'Guest lecture',
+});
+
+export const typeLabel = (type) => OPPORTUNITY_TYPE_LABELS[type] ?? type;
 
 /** Work modes, verbatim from TRD.md section 16. */
 export const WORK_MODES = Object.freeze({
@@ -178,11 +396,20 @@ export const canTransition = (from, to) => {
  * answer. The field stays optional for every type — this list drives the form
  * and the "when appropriate" wording in the build brief, not a hard rejection,
  * because a fixed-term job is a real thing.
+ *
+ * The Step 7 additions follow the same test: a faculty internship, an industrial
+ * training stint, a research collaboration and a consultancy all run for a
+ * period. An FDP, a workshop and a guest lecture are events with a date, and
+ * mentorship is open-ended, so none of those four appear here.
  */
 export const DURATION_RELEVANT_TYPES = Object.freeze([
   OPPORTUNITY_TYPES.INTERNSHIP,
   OPPORTUNITY_TYPES.APPRENTICESHIP,
   OPPORTUNITY_TYPES.PROJECT,
+  OPPORTUNITY_TYPES.FACULTY_INTERNSHIP,
+  OPPORTUNITY_TYPES.INDUSTRIAL_TRAINING,
+  OPPORTUNITY_TYPES.RESEARCH_COLLABORATION,
+  OPPORTUNITY_TYPES.CONSULTANCY,
 ]);
 
 export const hasMeaningfulDuration = (type) => DURATION_RELEVANT_TYPES.includes(type);

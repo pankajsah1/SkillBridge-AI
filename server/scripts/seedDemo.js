@@ -45,7 +45,7 @@ import mongoose from 'mongoose';
 import { env, validateEnv } from '../src/config/env.js';
 import { toSlug, SKILL_SOURCES } from '../src/constants/skills.js';
 import { APPLICATION_STATUSES, canTransition } from '../src/constants/applications.js';
-import { OPPORTUNITY_STATUSES } from '../src/constants/opportunities.js';
+import { DEFAULT_AUDIENCE, OPPORTUNITY_STATUSES } from '../src/constants/opportunities.js';
 import ROLES from '../src/constants/roles.js';
 import { SKILL_SEED } from '../src/data/skills.seed.js';
 import { CAREER_ROLE_SEED } from '../src/data/careerRoles.seed.js';
@@ -65,6 +65,7 @@ import CareerRole from '../src/models/CareerRole.js';
 import Opportunity from '../src/models/Opportunity.js';
 import Skill from '../src/models/Skill.js';
 import StudentProfile from '../src/models/StudentProfile.js';
+import AcademicianProfile from '../src/models/AcademicianProfile.js';
 import User from '../src/models/User.js';
 import { createApplication, updateApplicationStatus } from '../src/services/application.service.js';
 
@@ -325,16 +326,26 @@ export const validateDemoData = () => {
   const pairs = new Set();
 
   DEMO_APPLICATIONS.forEach((application) => {
-    if (!emails.has(application.student)) {
-      errors.push(`An application names unknown student "${application.student}".`);
+    const isAcademician = 'academician' in application;
+    const applicantEmail = isAcademician ? application.academician : application.student;
+
+    if (isAcademician) {
+      if (applicantEmail !== DEMO_ACADEMICIAN.email) {
+        errors.push(`An application names unknown academician "${applicantEmail}".`);
+      }
+    } else {
+      if (!emails.has(application.student)) {
+        errors.push(`An application names unknown student "${application.student}".`);
+      }
     }
+
     if (!postingTitles.has(application.posting)) {
       errors.push(`An application names unknown posting "${application.posting}".`);
     }
 
-    const pair = `${application.student}|${application.posting}`;
+    const pair = `${applicantEmail}|${application.posting}`;
     if (pairs.has(pair)) {
-      errors.push(`${application.student} applies to "${application.posting}" twice.`);
+      errors.push(`${applicantEmail} applies to "${application.posting}" twice.`);
     }
     pairs.add(pair);
 
@@ -418,6 +429,11 @@ const loadSkillIds = async () => {
       wanted.add(slug),
     ),
   );
+  /* Step 7: the academician's expertise resolves through the same catalogue as every
+     student skill, and it has to be collected here too. Left out, `skillIds.get(slug)`
+     returns undefined, `skillId` fails its required check, and the whole seed dies on
+     the one profile the academician demo needs. */
+  (DEMO_ACADEMICIAN.expertise ?? []).forEach(([slug]) => wanted.add(slug));
 
   const skills = await Skill.find({ slug: { $in: [...wanted] } }).select('slug');
   const bySlug = new Map(skills.map((skill) => [skill.slug, skill._id]));
@@ -582,9 +598,101 @@ const upsertProfile = async (student, user, skillIds, roleIds, stats) => {
 };
 
 /**
+ * Writes one academician profile (Step 7).
+ *
+ * Same upsert pattern as student profiles: match on userId, update in place if
+ * found, create if not.
+ *
+ * IT WRITES THE SCHEMA'S FIELD NAMES, AND THAT MATTERS MORE HERE THAN IT LOOKS.
+ * Mongoose drops unknown paths without complaining, so a seed that writes
+ * `areasOfExpertise` where the model says `expertiseAreas` produces a profile that
+ * saves cleanly and is half empty — no error, no warning, just a demo account with
+ * nothing to match on. The completion percentage printed after the save is the check:
+ * Dr. Sharma's persona fills every section, so anything under 100 means a field name
+ * drifted.
+ *
+ * `recomputeCompletion()` BEFORE EVERY SAVE, which is the contract the service holds
+ * to as well — `profileCompletion` is stored, and the dashboard card and the matching
+ * engine's completeness component both read the stored number.
+ */
+const upsertAcademicianProfile = async (academician, user, skillIds, stats) => {
+  /* `verified: false` and the default manual source, deliberately: an academician
+     states their own level and the platform has not tested it. Marking seeded
+     expertise as verified would put a badge on the demo that the product cannot
+     currently earn. */
+  const skills = (academician.expertise ?? []).map(([slug, level]) => ({
+    skillId: skillIds.get(slug),
+    level,
+  }));
+
+  /* Month precision, midday, same reasoning as `monthsFromNow` above: a position is
+     remembered by month, and midday keeps the date on the intended day whichever
+     timezone the seed runs in. */
+  const toDate = ([year, month]) => new Date(year, month - 1, 15, 12, 0, 0);
+
+  const fields = {
+    headline: academician.headline ?? '',
+    bio: academician.bio ?? '',
+    institutionName: academician.institutionName ?? '',
+    department: academician.department ?? '',
+    designation: academician.designation ?? null,
+    location: academician.location ?? '',
+    expertiseAreas: academician.expertiseAreas ?? [],
+    researchInterests: academician.researchInterests ?? [],
+    skills,
+    education: (academician.education ?? []).map((entry) => ({
+      degree: entry.degree,
+      institution: entry.institution,
+      fieldOfStudy: entry.fieldOfStudy ?? '',
+      year: entry.year ?? null,
+    })),
+    experiences: (academician.experiences ?? []).map((entry) => ({
+      organization: entry.organization,
+      role: entry.role,
+      experienceType: entry.experienceType,
+      startDate: toDate(entry.start),
+      endDate: entry.end ? toDate(entry.end) : null,
+      isCurrent: Boolean(entry.isCurrent),
+      description: entry.description ?? '',
+    })),
+    achievements: (academician.achievements ?? []).map((entry) => ({
+      title: entry.title,
+      achievementType: entry.achievementType,
+      description: entry.description ?? '',
+      issuingOrganization: entry.issuingOrganization ?? '',
+      year: entry.year ?? null,
+    })),
+  };
+
+  const existing = await AcademicianProfile.findOne({ userId: user._id });
+
+  if (existing) {
+    existing.set(fields);
+    existing.recomputeCompletion();
+    await existing.save();
+    stats.updated += 1;
+    return existing;
+  }
+
+  const profile = new AcademicianProfile({ userId: user._id, ...fields });
+  profile.recomputeCompletion();
+  await profile.save();
+  stats.created += 1;
+  return profile;
+};
+
+/**
  * Writes one posting, always as active with the stated deadline.
  *
  * `finalStatus` is applied later, after applications exist — see applyFinalStates.
+ *
+ * `audience` IS WRITTEN EXPLICITLY, AND LEAVING IT OUT WAS A REAL BUG. The schema
+ * defaults it to `student`, so the six Step 7 postings that say
+ * `audience: 'academician'` in demo.seed.js were being saved as student postings.
+ * That does not fail quietly, as it happens: `coherentAudience` refuses a Faculty
+ * Development Programme offered to students, so the seed died on the first
+ * academician posting instead. Either way the fix is one line — the default is only
+ * ever right for documents written before Step 7 existed, never for new ones.
  */
 const upsertOpportunity = async (posting, ownerId, skillIds, stats) => {
   const toRequirement = ([slug, requiredLevel, importanceWeight]) => ({
@@ -595,6 +703,7 @@ const upsertOpportunity = async (posting, ownerId, skillIds, stats) => {
 
   const fields = {
     industryId: ownerId,
+    audience: posting.audience ?? DEFAULT_AUDIENCE,
     title: posting.title,
     type: posting.type,
     description: posting.description,
@@ -631,45 +740,55 @@ const upsertOpportunity = async (posting, ownerId, skillIds, stats) => {
  * script is re-runnable) and an illegal move is an error we do not (the data is
  * wrong). Already-reached statuses are skipped, which is what makes a second run
  * cheap rather than a no-op stream of errors.
+ *
+ * Step 7: handles both student and academician applications. An entry with `student:`
+ * is a student application; an entry with `academician:` is an academician application.
+ * The service's createApplication takes `applicantRole` to distinguish them.
+ *
+ * BOTH KINDS ARE STORED ON `studentId`, WHICH IS NOT A BUG. Application.js explains
+ * why the field kept its name when academicians became applicants: it is the applicant
+ * reference and always was, and renaming it would have touched every file that reads it.
+ * `applicantRole` is what says which kind of user is on the other end. So there is no
+ * `academicianId` to look up by, and the duplicate check below is the same query for
+ * both — which is also what the unique index enforces.
  */
-const seedApplications = async ({ studentsByEmail, postingsByTitle, ownerByPosting }) => {
+const seedApplications = async ({ studentsByEmail, academicianByEmail, postingsByTitle, ownerByPosting }) => {
   const stats = { created: 0, existing: 0, moved: 0, skipped: 0 };
 
   for (const entry of DEMO_APPLICATIONS) {
-    const student = studentsByEmail.get(entry.student);
+    const isAcademician = 'academician' in entry;
+    const applicantEmail = isAcademician ? entry.academician : entry.student;
+    const applicant = isAcademician
+      ? academicianByEmail.get(applicantEmail)
+      : studentsByEmail.get(applicantEmail);
     const posting = postingsByTitle.get(entry.posting);
-    if (!student || !posting) {
+
+    if (!applicant || !posting) {
       stats.skipped += 1;
       continue;
     }
 
-    let application = await Application.findOne({
-      studentId: student._id,
-      opportunityId: posting._id,
-    });
+    /* One query shape for both kinds of applicant, and it is also the unique index. */
+    const mine = { studentId: applicant._id, opportunityId: posting._id };
+    let application = await Application.findOne(mine);
 
     if (application) {
       stats.existing += 1;
     } else {
       try {
         await createApplication({
-          studentId: student._id.toString(),
+          studentId: applicant._id.toString(),
+          applicantRole: applicant.role,
           opportunityId: posting._id.toString(),
           coverNote: entry.coverNote ?? '',
         });
         stats.created += 1;
-        application = await Application.findOne({
-          studentId: student._id,
-          opportunityId: posting._id,
-        });
+        application = await Application.findOne(mine);
       } catch (error) {
         /* A conflict means it already exists, which is fine. Anything else is not. */
         if (error?.statusCode !== 409) throw error;
         stats.existing += 1;
-        application = await Application.findOne({
-          studentId: student._id,
-          opportunityId: posting._id,
-        });
+        application = await Application.findOne(mine);
       }
     }
 
@@ -803,7 +922,10 @@ const run = async () => {
       { ...DEMO_INSTITUTION, role: ROLES.INSTITUTION },
       accountStats,
     );
-    await upsertUser({ ...DEMO_ACADEMICIAN, role: ROLES.ACADEMICIAN }, accountStats);
+    const academician = await upsertUser({ ...DEMO_ACADEMICIAN, role: ROLES.ACADEMICIAN }, accountStats);
+
+    const academicianByEmail = new Map();
+    academicianByEmail.set(DEMO_ACADEMICIAN.email, academician);
 
     const employerById = new Map();
     for (const employer of DEMO_EMPLOYERS) {
@@ -836,6 +958,11 @@ const run = async () => {
       if (DEMO_PORTFOLIOS[student.email]) portfolioProfiles.push([student, profile]);
     }
 
+    // --- academician profile (Step 7) -------------------------------------
+    // Written below, after the portfolio summary, with its own stats and its own
+    // completion line. It used to be done here as well, which counted one profile
+    // twice in the "Profiles" total and wrote the same document twice per run.
+
     console.log(summarise('Profiles', profileStats));
 
     /* The completion figures are read back off the saved documents rather than restated
@@ -867,6 +994,24 @@ const run = async () => {
       );
     }
 
+    // --- academician profile (Step 7) -------------------------------------
+    const academicianProfileStats = { created: 0, updated: 0 };
+    const academicianProfile = await upsertAcademicianProfile(
+      DEMO_ACADEMICIAN,
+      academician,
+      skillIds,
+      academicianProfileStats,
+    );
+
+    console.log(summarise('Academician profiles', academicianProfileStats));
+    /* Read back off the saved document, like the portfolio line above: this is the
+       model's own arithmetic on what actually landed. Dr. Sharma's persona fills every
+       completion section, so anything under 100% means a field name drifted between
+       demo.seed.js and AcademicianProfile. */
+    if (academicianProfile) {
+      console.log(`      completion  Dr. Sharma ${academicianProfile.profileCompletion}%`);
+    }
+
     // --- postings ---------------------------------------------------------
     const postingStats = { created: 0, updated: 0 };
     const postingsByTitle = new Map();
@@ -886,6 +1031,7 @@ const run = async () => {
 
     const applicationStats = await seedApplications({
       studentsByEmail,
+      academicianByEmail,
       postingsByTitle,
       ownerByPosting,
     });

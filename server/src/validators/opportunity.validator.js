@@ -21,15 +21,23 @@
 
 import AppError from '../utils/AppError.js';
 import {
+  AUDIENCE_VALUES,
+  AUDIENCES,
   CREATABLE_OPPORTUNITY_STATUSES,
+  DEFAULT_AUDIENCE,
   OPPORTUNITY_LIMITS,
   OPPORTUNITY_PAGE,
   OPPORTUNITY_STATUS_VALUES,
   OPPORTUNITY_TYPE_VALUES,
+  TYPES_BY_AUDIENCE,
   WORK_MODE_VALUES,
+  audienceForRole,
+  isTypeAllowedForAudience,
+  isValidAudience,
   isValidOpportunityStatus,
   isValidOpportunityType,
   isValidWorkMode,
+  typeLabel,
 } from '../constants/opportunities.js';
 import { SKILL_LEVEL_MAX, SKILL_LEVEL_MIN, isValidSkillLevel } from '../constants/skills.js';
 
@@ -347,8 +355,15 @@ const checkEligibility = (value, errors) => {
  *
  * This list IS the write whitelist — the service builds its update from it, so a
  * field cannot become writable by accident. `industryId` is absent by design and
- * that absence is the enforcement: ownership comes from `req.user._id`, so
+ * that absence is the enforcement: ownership comes from `req.user.id`, so
  * "create this as someone else" is not expressible, per his section 3.
+ *
+ * `audience` IS ABSENT DELIBERATELY TOO, and for a different reason: it is
+ * writable exactly once, at creation, and the service sets it explicitly there.
+ * Putting it in this list would make it PATCHable, and re-aiming a posting that
+ * already has applications would leave academicians attached to a student
+ * internship. The update validator rejects it by name so that intent gets an
+ * explanation rather than a silent no-op.
  */
 export const EDITABLE_OPPORTUNITY_FIELDS = Object.freeze([
   'title',
@@ -559,11 +574,54 @@ const checkOpportunityBody = (body, errors, { required }) => {
  * `status` may be omitted (defaults to active), `draft` to save without
  * publishing, or `active` to publish. `closed` is rejected here because closing
  * something that was never open is meaningless.
+ *
+ * `audience` may be omitted too, and omitting it means `student` — which is what
+ * every posting created before Step 7 was, so the request shape the industry
+ * frontend has been sending since Step 4 stays valid unchanged.
  */
 export const validateCreateOpportunityInput = (body = {}) => {
   const errors = [];
 
   checkOpportunityBody(body, errors, { required: true });
+
+  checkEnum(
+    body.audience,
+    {
+      field: 'audience',
+      label: 'Audience',
+      isValid: isValidAudience,
+      allowed: AUDIENCE_VALUES,
+      required: false,
+    },
+    errors,
+  );
+
+  /**
+   * The type/audience pair check.
+   *
+   * One enum holds all twelve types, so `type` alone cannot express "an internship
+   * for academicians" as invalid — only the pair can. The model enforces the same
+   * rule as a hook, which is what makes it true for the seed script and any future
+   * call site; this copy exists because it can name the field and list the types
+   * the caller actually has available, which a schema validator cannot.
+   *
+   * Only reached for a type that is otherwise valid, so a misspelling stays a
+   * misspelling rather than becoming a confusing complaint about audiences.
+   */
+  const audience = isValidAudience(body.audience) ? body.audience : DEFAULT_AUDIENCE;
+
+  if (isValidOpportunityType(body.type) && !isTypeAllowedForAudience(body.type, audience)) {
+    const who = audience === AUDIENCES.STUDENT ? 'students' : 'academicians';
+
+    errors.push({
+      field: 'type',
+      message: `${typeLabel(body.type)} cannot be offered to ${who}. Choose one of: ${TYPES_BY_AUDIENCE[
+        audience
+      ]
+        .map(typeLabel)
+        .join(', ')}.`,
+    });
+  }
 
   if (isDefined(body.status) && body.status !== '') {
     if (!CREATABLE_OPPORTUNITY_STATUSES.includes(body.status)) {
@@ -584,9 +642,25 @@ export const validateCreateOpportunityInput = (body = {}) => {
  * client bug, and answering 200 "updated" for a request that changed nothing
  * hides it. Whether a status *change* is legal is decided in the service, which
  * is the only layer that knows the current status.
+ *
+ * WHY `audience` IS REJECTED RATHER THAN IGNORED. A posting's audience decides who
+ * can see it and therefore who has applied to it; changing it later would leave
+ * existing applications attached to a posting aimed at a different kind of person,
+ * and the type/audience rule would reject the change anyway once the type no longer
+ * suited the new audience. Naming it is the honest answer, and the message says
+ * what to do instead. Checked before the empty-patch test so that a request
+ * sending only this field gets the real explanation.
  */
 export const validateUpdateOpportunityInput = (body = {}) => {
   const errors = [];
+
+  if ('audience' in body) {
+    errors.push({
+      field: 'audience',
+      message:
+        'The audience is set when a posting is created and cannot be changed afterwards. Close this posting and create a new one for the other audience.',
+    });
+  }
 
   const touched = EDITABLE_OPPORTUNITY_FIELDS.filter((field) => field in body);
 
@@ -624,12 +698,24 @@ export const validateUpdateOpportunityInput = (body = {}) => {
  * "your request was malformed". The catalogue's free-text `tag` filter has no such
  * fixed set, so silence is the honest answer there.
  *
+ * `audience` EXTENDS THAT SAME ARGUMENT TO THE TYPE FILTER (Step 7). One enum now
+ * holds all twelve types, so `?type=fdp` is a perfectly valid type that a student
+ * can nonetheless never see a single result for — the browse filter is scoped to
+ * their audience. Passing the reader's audience in lets that be a named 400
+ * instead of a silent empty page, exactly the distinction the paragraph above
+ * draws.
+ *
+ * It is OPTIONAL, and omitting it skips the pair check. The industry management
+ * list uses this same validator to filter postings the caller owns, and an
+ * employer legitimately owns postings for both audiences — restricting their type
+ * filter to one of the two would break the list for the other.
+ *
  * `skills` arrives as a comma-separated id list — `?skills=<id>,<id>` — which is
  * the shape a checkbox filter naturally serialises to. Malformed entries must be
  * rejected rather than passed through: an unparseable id reaching a Mongo query
  * would surface as a confusing CastError about a field the student never saw.
  */
-export const validateOpportunityQueryInput = (query = {}) => {
+export const validateOpportunityQueryInput = (query = {}, { audience = null } = {}) => {
   const errors = [];
 
   checkEnum(
@@ -643,6 +729,13 @@ export const validateOpportunityQueryInput = (query = {}) => {
     },
     errors,
   );
+
+  if (audience && isValidOpportunityType(query.type) && !isTypeAllowedForAudience(query.type, audience)) {
+    errors.push({
+      field: 'type',
+      message: `Opportunity type must be one of: ${TYPES_BY_AUDIENCE[audience].join(', ')}.`,
+    });
+  }
 
   checkEnum(
     query.workMode,
@@ -760,12 +853,33 @@ const toQueryMiddleware = (validator) => (req, _res, next) => {
   return next();
 };
 
+/**
+ * The browse variant, which additionally knows who is asking.
+ *
+ * `req.user` is always set here: every route in opportunity.routes.js runs
+ * `authenticate` first. The optional chain is belt-and-braces rather than a real
+ * case, and it fails to the student audience, which is the closed direction.
+ */
+const validateBrowseQueryMiddleware = (req, _res, next) => {
+  const errors = validateOpportunityQueryInput(req.query, {
+    audience: audienceForRole(req.user?.role),
+  });
+
+  if (errors.length > 0) {
+    return next(AppError.badRequest('Validation failed', errors));
+  }
+
+  return next();
+};
+
 export const validateCreateOpportunity = toMiddleware(validateCreateOpportunityInput);
 export const validateUpdateOpportunity = toMiddleware(validateUpdateOpportunityInput);
 export const validateOpportunityQuery = toQueryMiddleware(validateOpportunityQueryInput);
+export const validateBrowseQuery = validateBrowseQueryMiddleware;
 
 export default {
   validateCreateOpportunity,
   validateUpdateOpportunity,
   validateOpportunityQuery,
+  validateBrowseQuery,
 };

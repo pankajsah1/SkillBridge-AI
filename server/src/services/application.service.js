@@ -34,8 +34,9 @@ import {
   isTerminalStatus,
   statusLabel,
 } from '../constants/applications.js';
-import { AVAILABILITY, availabilityFor } from '../constants/opportunities.js';
-import { getMatchForStudent } from './matching.service.js';
+import { AVAILABILITY, AUDIENCES, availabilityFor, audienceForRole } from '../constants/opportunities.js';
+import { APPLICANT_ROLES, DEFAULT_APPLICANT_ROLE } from '../constants/roles.js';
+import { getMatchForAcademician, getMatchForStudent } from './matching.service.js';
 
 /** Mongo's duplicate-key error. The unique index on the model raises it. */
 const DUPLICATE_KEY = 11000;
@@ -84,7 +85,7 @@ const RECRUITER_POPULATE = [{ path: 'studentId', select: 'name email' }];
  * invisible to everyone but their owner everywhere else in this API, and
  * confirming one exists here would leak an unpublished posting.
  */
-const loadApplicablePosting = async (opportunityId) => {
+const loadApplicablePosting = async (opportunityId, applicantRole = DEFAULT_APPLICANT_ROLE) => {
   const opportunity = await Opportunity.findById(opportunityId);
 
   if (!opportunity) {
@@ -105,6 +106,39 @@ const loadApplicablePosting = async (opportunityId) => {
     throw AppError.badRequest('The deadline for this opportunity has passed.');
   }
 
+  /**
+   * Gate 3b, added in Step 7: the posting has to be aimed at this kind of
+   * applicant.
+   *
+   * THIS IS THE ONLY PLACE THE AUDIENCE RULE IS ENFORCED ON WRITE, and it has to
+   * be here rather than on the route. Browse is audience-scoped, so neither role
+   * can *find* the other's postings — but `GET /opportunities/:id` deliberately is
+   * not scoped (an industry owner has to be able to open their own academician
+   * posting, and `audienceForRole(INDUSTRY)` is `student`), so anyone holding an id
+   * can read the detail page. Without this check a student who got a faculty
+   * programme id from a colleague could still POST an application to it, and the
+   * recruiter reviewing FDP registrations would find an undergraduate in the list.
+   *
+   * `opportunity.audience` is safe to compare directly even on a posting written
+   * before Step 7: this is a hydrated document, and Mongoose applies the schema
+   * default when the key is absent. That is the one context where the default can
+   * be relied on — a *query* filter cannot, which is what `audienceQuery()` exists
+   * for.
+   *
+   * 400 RATHER THAN 404, unlike the draft case above. A draft is genuinely not
+   * visible to this caller, so pretending it does not exist costs them nothing and
+   * leaks nothing. This posting, by contrast, is one they can legitimately read —
+   * answering "not found" for something their browser is currently displaying would
+   * read as a bug, so it says what is actually wrong.
+   */
+  if (opportunity.audience !== audienceForRole(applicantRole)) {
+    throw AppError.badRequest(
+      opportunity.audience === AUDIENCES.ACADEMICIAN
+        ? 'This opportunity is open to academicians only.'
+        : 'This opportunity is open to students only.',
+    );
+  }
+
   return opportunity;
 };
 
@@ -115,10 +149,22 @@ const loadApplicablePosting = async (opportunityId) => {
  * The score is metadata a recruiter finds useful; applying is the thing the
  * student actually came to do. If the matching engine throws, the application is
  * still created and the score is recorded as "not scored", which is honest.
+ *
+ * THE ROLE DECIDES WHICH PROFILE IS SCORED (Step 7), and it matters more here than
+ * anywhere else: `matchScoreAtApplication` is a write-once snapshot that is never
+ * recomputed, so an academician scored through the student path would be recorded
+ * as "not scored" permanently — the student lookup finds no StudentProfile, returns
+ * `reason: 'no-profile'`, and the null it produces is the number a recruiter still
+ * sees months later. Both branches run the same `calculateMatch`; only the profile
+ * they read differs.
  */
-const scoreAtApplication = async ({ studentId, opportunityId }) => {
+const scoreAtApplication = async ({ applicantId, applicantRole, opportunityId }) => {
   try {
-    const { match } = await getMatchForStudent({ studentId, opportunityId });
+    const { match } =
+      applicantRole === APPLICANT_ROLES.ACADEMICIAN
+        ? await getMatchForAcademician({ academicianId: applicantId, opportunityId })
+        : await getMatchForStudent({ studentId: applicantId, opportunityId });
+
     return typeof match?.matchScore === 'number' ? match.matchScore : null;
   } catch {
     return null;
@@ -128,23 +174,43 @@ const scoreAtApplication = async ({ studentId, opportunityId }) => {
 /**
  * POST /applications — gates 1-6 of TRD section 45, in order.
  *
- * @param {{studentId: string, opportunityId: string, coverNote?: string}} input
- * @returns {Promise<object>} the new application, as the student sees it
+ * `studentId` KEEPS ITS PARAMETER NAME because the model field keeps its path; see
+ * the Application header for why renaming it was rejected. `applicantRole` says
+ * which kind of user that id belongs to and defaults to STUDENT, so the Step 5
+ * student flow reaches this function exactly as it did before.
+ *
+ * @param {{studentId: string, opportunityId: string, coverNote?: string,
+ *          applicantRole?: string}} input
+ * @returns {Promise<object>} the new application, as the applicant sees it
  */
-export const createApplication = async ({ studentId, opportunityId, coverNote = '' } = {}) => {
-  /* Gates 1-3: exists, active, deadline not passed. */
-  await loadApplicablePosting(opportunityId);
+export const createApplication = async ({
+  studentId,
+  opportunityId,
+  coverNote = '',
+  applicantRole = DEFAULT_APPLICANT_ROLE,
+} = {}) => {
+  /* Gates 1-3: exists, active, deadline not passed, aimed at this kind of
+     applicant. */
+  await loadApplicablePosting(opportunityId, applicantRole);
 
   /* Gate 4: already applied. The friendly half of the duplicate rule — the
      unique index below is the half that cannot be raced. */
   const existing = await Application.findOne({ studentId, opportunityId });
 
   if (existing) {
-    throw AppError.conflict('You have already applied to this opportunity.');
+    throw AppError.conflict(
+      applicantRole === APPLICANT_ROLES.ACADEMICIAN
+        ? 'You have already registered for this opportunity.'
+        : 'You have already applied to this opportunity.',
+    );
   }
 
   /* Gate 5: score, once, now. */
-  const matchScoreAtApplication = await scoreAtApplication({ studentId, opportunityId });
+  const matchScoreAtApplication = await scoreAtApplication({
+    applicantId: studentId,
+    applicantRole,
+    opportunityId,
+  });
 
   /* Gate 6: create. */
   const now = new Date();
@@ -152,6 +218,7 @@ export const createApplication = async ({ studentId, opportunityId, coverNote = 
   try {
     const created = await Application.create({
       studentId,
+      applicantRole,
       opportunityId,
       matchScoreAtApplication,
       coverNote: typeof coverNote === 'string' ? coverNote.trim() : '',
@@ -166,7 +233,11 @@ export const createApplication = async ({ studentId, opportunityId, coverNote = 
     /* Two submits in the same instant: the loser lands here, and gets told the
        same thing the check above would have told them. */
     if (error?.code === DUPLICATE_KEY) {
-      throw AppError.conflict('You have already applied to this opportunity.');
+      throw AppError.conflict(
+        applicantRole === APPLICANT_ROLES.ACADEMICIAN
+          ? 'You have already registered for this opportunity.'
+          : 'You have already applied to this opportunity.',
+      );
     }
 
     throw error;

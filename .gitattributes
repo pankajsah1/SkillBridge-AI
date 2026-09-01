@@ -1,0 +1,26 @@
+# Line endings are LF in this repository, everywhere, always.
+#
+# WHY THIS FILE EXISTS. Step 7 was written on Windows through a OneDrive-synced
+# folder, and 26 files came back rewritten with CRLF. Every blob already in git
+# used LF, so `git diff` reported those files as changed end to end: 16,512 lines
+# of churn hiding 2,810 lines of real work. A diff nobody can read is a diff
+# nobody reviews, and `git blame` on ten untouched files would have pointed at
+# this commit forever.
+#
+# `text=auto eol=lf` means git normalises to LF when it stores a file and checks
+# it out as LF, whatever the editor writes locally. Node, Vite and every browser
+# read LF fine on Windows, so nothing downstream cares.
+#
+# If a whole-file diff ever appears again, the fix is:
+#     git add --renormalize .
+* text=auto eol=lf
+
+# Binary, so never touched.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.pdf binary
+*.woff binary
+*.woff2 binary

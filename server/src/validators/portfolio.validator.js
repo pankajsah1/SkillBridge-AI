@@ -52,8 +52,22 @@ const rejectServerOwnedFields = (body, errors) => {
 
 // --- primitive checks ------------------------------------------------------
 // Shaped like studentProfile.validator.js's helpers so both files read the same.
+//
+// EXPORTED SINCE STEP 7, and nothing else about them changed. `academician.validator.js`
+// validates the same primitive kinds of value — a required name, an optional
+// description, a past date, a member of a closed set — and re-typing these seven
+// functions there would have meant two definitions of "is this a valid date" that
+// could drift apart without either one looking wrong. The precedent is
+// `validateObjectIdParam`, which three route files already import from
+// studentProfile.validator.js.
+//
+// They are pure and take their limits as arguments, so exporting them widens no
+// surface: the only shared assumption is `checkOptionalUrl`'s length cap, which
+// reads PORTFOLIO_LIMITS.maxUrlLength. That equals ACADEMICIAN_LIMITS.maxUrlLength
+// today and the Step 7 verifier asserts it, so the message quotes the right number
+// for both callers.
 
-const checkRequiredString = (value, { field, max, label }, errors) => {
+export const checkRequiredString = (value, { field, max, label }, errors) => {
   if (value === undefined || value === null) {
     errors.push({ field, message: `${label} is required.` });
     return;
@@ -75,7 +89,7 @@ const checkRequiredString = (value, { field, max, label }, errors) => {
   }
 };
 
-const checkOptionalString = (value, { field, max, label }, errors) => {
+export const checkOptionalString = (value, { field, max, label }, errors) => {
   if (value === undefined || value === null || value === '') return;
 
   if (typeof value !== 'string') {
@@ -93,7 +107,7 @@ const checkOptionalString = (value, { field, max, label }, errors) => {
  * converts, this only judges. An explicit `null` is allowed so a client can
  * clear a date it previously set.
  */
-const checkDate = (value, { field, label, required = false }, errors) => {
+export const checkDate = (value, { field, label, required = false }, errors) => {
   if (value === undefined || value === null || value === '') {
     if (required) errors.push({ field, message: `${label} is required.` });
     return;
@@ -119,14 +133,14 @@ const checkDate = (value, { field, label, required = false }, errors) => {
   }
 };
 
-const checkBoolean = (value, { field, label }, errors) => {
+export const checkBoolean = (value, { field, label }, errors) => {
   if (value === undefined || value === null) return;
   if (typeof value !== 'boolean') {
     errors.push({ field, message: `${label} must be true or false.` });
   }
 };
 
-const checkEnum = (value, { field, label, values, required = false }, errors) => {
+export const checkEnum = (value, { field, label, values, required = false }, errors) => {
   if (value === undefined || value === null || value === '') {
     if (required) errors.push({ field, message: `${label} is required.` });
     return;
@@ -144,7 +158,7 @@ const checkEnum = (value, { field, label, values, required = false }, errors) =>
  * as a URL, and this value ends up in an anchor's href — so the scheme check is
  * the thing standing between a stored URL and stored XSS.
  */
-const checkOptionalUrl = (value, { field, label }, errors) => {
+export const checkOptionalUrl = (value, { field, label }, errors) => {
   if (value === undefined || value === null || value === '') return;
 
   if (typeof value !== 'string') {
@@ -174,7 +188,7 @@ const checkOptionalUrl = (value, { field, label }, errors) => {
 };
 
 /** A list of short free-text tags: technologies, skills used. */
-const checkStringArray = (value, { field, label, maxItems, maxLength }, errors) => {
+export const checkStringArray = (value, { field, label, maxItems, maxLength }, errors) => {
   if (value === undefined || value === null) return;
 
   if (!Array.isArray(value)) {

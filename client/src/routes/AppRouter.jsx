@@ -42,6 +42,11 @@ import MyOpportunities from '../pages/industry/MyOpportunities.jsx';
 import OpportunityApplicants from '../pages/industry/OpportunityApplicants.jsx';
 import OpportunityFormPage from '../pages/industry/OpportunityFormPage.jsx';
 import AcademicianDashboard from '../pages/dashboards/AcademicianDashboard.jsx';
+import AcademicianProfile from '../pages/academician/AcademicianProfile.jsx';
+import AcademicianOpportunities from '../pages/academician/AcademicianOpportunities.jsx';
+import AcademicianOpportunityDetails from '../pages/academician/AcademicianOpportunityDetails.jsx';
+import AcademicianApplications from '../pages/academician/AcademicianApplications.jsx';
+import AcademicianMatches from '../pages/academician/AcademicianMatches.jsx';
 import InstitutionDashboard from '../pages/dashboards/InstitutionDashboard.jsx';
 import AdminDashboard from '../pages/dashboards/AdminDashboard.jsx';
 
@@ -145,6 +150,20 @@ export default function AppRouter() {
 
       <Route element={<RoleRoute allowedRoles={[ROLES.ACADEMICIAN]} />}>
         <Route path="/academician" element={<AcademicianDashboard />} />
+        <Route path="/academician/profile" element={<AcademicianProfile />} />
+        {/* Discovery is academician-scoped for the same reason student discovery is:
+            a shared detail page would give "Back to opportunities" links that land
+            industry users on /unauthorized. The API endpoint is the same
+            GET /opportunities for both — it scopes by req.user.role. */}
+        <Route path="/academician/opportunities" element={<AcademicianOpportunities />} />
+        <Route path="/academician/opportunities/:id" element={<AcademicianOpportunityDetails />} />
+        {/* Matches is the academician's ranked list — opportunities scored against
+            their expertise. Separate from /opportunities for the same reason the
+            student version is: browse is "what exists", this is "what fits me". */}
+        <Route path="/academician/matches" element={<AcademicianMatches />} />
+        {/* Applications is the academician's own submissions, scoped by token on the
+            server. Uses the same GET /applications endpoint students call. */}
+        <Route path="/academician/applications" element={<AcademicianApplications />} />
       </Route>
 
       <Route element={<RoleRoute allowedRoles={[ROLES.INSTITUTION]} />}>

@@ -12,36 +12,168 @@
  * has to decide how to spell "onsite" for a person.
  */
 
+/**
+ * Who a posting is addressed to. Matches the server's AUDIENCES.
+ *
+ * The API never asks the reader which audience they are — it derives that from
+ * the authenticated role — so the client needs this only in two places: the
+ * employer's create form, where the employer chooses who they are writing for,
+ * and the academician pages, which label the two kinds of listing differently.
+ */
+export const AUDIENCES = Object.freeze({
+  STUDENT: 'student',
+  ACADEMICIAN: 'academician',
+});
+
+export const AUDIENCE_VALUES = Object.freeze(Object.values(AUDIENCES));
+
+export const DEFAULT_AUDIENCE = AUDIENCES.STUDENT;
+
+export const AUDIENCE_LABELS = Object.freeze({
+  [AUDIENCES.STUDENT]: 'Students',
+  [AUDIENCES.ACADEMICIAN]: 'Academicians / faculty',
+});
+
+export const isValidAudience = (value) => AUDIENCE_VALUES.includes(value);
+
+export const audienceLabel = (audience) => AUDIENCE_LABELS[audience] ?? AUDIENCE_LABELS[DEFAULT_AUDIENCE];
+
 /** Matches the server's OPPORTUNITY_TYPES. */
 export const OPPORTUNITY_TYPES = Object.freeze({
+  /* Student-facing. */
   INTERNSHIP: 'internship',
   JOB: 'job',
   APPRENTICESHIP: 'apprenticeship',
   PROJECT: 'project',
+
+  /* Academician-facing — Step 7. */
+  FACULTY_INTERNSHIP: 'faculty_internship',
+  INDUSTRIAL_TRAINING: 'industrial_training',
+  FDP: 'fdp',
+  WORKSHOP: 'workshop',
+  MENTORSHIP: 'mentorship',
+  RESEARCH_COLLABORATION: 'research_collaboration',
+  CONSULTANCY: 'consultancy',
+  GUEST_LECTURE: 'guest_lecture',
 });
 
 export const OPPORTUNITY_TYPE_VALUES = Object.freeze(Object.values(OPPORTUNITY_TYPES));
 
 /**
- * Display names, in the order the filter list and the type dropdown show them.
+ * Display names for every type.
  *
  * "Entry-Level Job" rather than "Job" because that is what PHASES.md PHASE 3
  * calls it and it is the more honest label for a student audience — a fresher
  * scanning a list should not have to wonder whether "Job" includes senior roles.
+ * The server's own labels differ slightly for the same reason in reverse: it uses
+ * them inside error messages, where "Entry-Level Job" would read oddly. Labels
+ * are the one thing the two copies are allowed to disagree about; wire values are
+ * not.
  */
 export const OPPORTUNITY_TYPE_LABELS = Object.freeze({
   [OPPORTUNITY_TYPES.INTERNSHIP]: 'Internship',
   [OPPORTUNITY_TYPES.JOB]: 'Entry-Level Job',
   [OPPORTUNITY_TYPES.APPRENTICESHIP]: 'Apprenticeship',
   [OPPORTUNITY_TYPES.PROJECT]: 'Live Project',
+  [OPPORTUNITY_TYPES.FACULTY_INTERNSHIP]: 'Faculty Internship',
+  [OPPORTUNITY_TYPES.INDUSTRIAL_TRAINING]: 'Industrial Training',
+  [OPPORTUNITY_TYPES.FDP]: 'Faculty Development Programme',
+  [OPPORTUNITY_TYPES.WORKSHOP]: 'Workshop',
+  [OPPORTUNITY_TYPES.MENTORSHIP]: 'Mentorship',
+  [OPPORTUNITY_TYPES.RESEARCH_COLLABORATION]: 'Research Collaboration',
+  [OPPORTUNITY_TYPES.CONSULTANCY]: 'Consultancy',
+  [OPPORTUNITY_TYPES.GUEST_LECTURE]: 'Guest Lecture',
 });
 
-export const OPPORTUNITY_TYPE_ORDER = Object.freeze([
-  OPPORTUNITY_TYPES.INTERNSHIP,
-  OPPORTUNITY_TYPES.JOB,
-  OPPORTUNITY_TYPES.APPRENTICESHIP,
-  OPPORTUNITY_TYPES.PROJECT,
+/**
+ * Which types each audience may be offered. Mirrors TYPES_BY_AUDIENCE.
+ *
+ * ALSO THE DISPLAY ORDER, which is why it is a frozen array rather than a Set:
+ * every dropdown and filter list in the app reads its options from here, so the
+ * server's rule about what is legal and the UI's decision about what to offer
+ * cannot drift apart. The student list is byte-for-byte the four values that used
+ * to be the whole enum, so no student surface changes.
+ */
+export const TYPES_BY_AUDIENCE = Object.freeze({
+  [AUDIENCES.STUDENT]: Object.freeze([
+    OPPORTUNITY_TYPES.INTERNSHIP,
+    OPPORTUNITY_TYPES.JOB,
+    OPPORTUNITY_TYPES.APPRENTICESHIP,
+    OPPORTUNITY_TYPES.PROJECT,
+  ]),
+  [AUDIENCES.ACADEMICIAN]: Object.freeze([
+    OPPORTUNITY_TYPES.FACULTY_INTERNSHIP,
+    OPPORTUNITY_TYPES.INDUSTRIAL_TRAINING,
+    OPPORTUNITY_TYPES.FDP,
+    OPPORTUNITY_TYPES.WORKSHOP,
+    OPPORTUNITY_TYPES.MENTORSHIP,
+    OPPORTUNITY_TYPES.RESEARCH_COLLABORATION,
+    OPPORTUNITY_TYPES.CONSULTANCY,
+    OPPORTUNITY_TYPES.GUEST_LECTURE,
+  ]),
+});
+
+export const isTypeAllowedForAudience = (type, audience) =>
+  (TYPES_BY_AUDIENCE[audience] ?? []).includes(type);
+
+/** The types to offer a reader of `audience`, in display order. */
+export const typeOrderFor = (audience) =>
+  TYPES_BY_AUDIENCE[audience] ?? TYPES_BY_AUDIENCE[DEFAULT_AUDIENCE];
+
+/**
+ * STILL THE FOUR STUDENT TYPES, deliberately.
+ *
+ * Three filter bars and the create form read this. Widening it to all twelve
+ * would have put "Faculty Development Programme" in the student browse filter —
+ * an option that can only ever return nothing, since the API scopes discovery by
+ * the caller's role. Anything that legitimately spans both audiences asks
+ * `typeOrderFor` or `ALL_TYPE_ORDER` by name instead.
+ */
+export const OPPORTUNITY_TYPE_ORDER = TYPES_BY_AUDIENCE[AUDIENCES.STUDENT];
+
+/**
+ * Every type, students first.
+ *
+ * For the employer's own-postings filter, which is the one list that mixes
+ * audiences: an employer who has posted both an internship and an FDP owns both,
+ * and hiding half their work behind an audience they did not choose would be a
+ * bug. The server agrees — its query validator only restricts the type filter by
+ * audience for *discovery*, never for the owner list.
+ */
+export const ALL_TYPE_ORDER = Object.freeze([
+  ...TYPES_BY_AUDIENCE[AUDIENCES.STUDENT],
+  ...TYPES_BY_AUDIENCE[AUDIENCES.ACADEMICIAN],
 ]);
+
+/**
+ * The academician split: what you can offer versus what you can gain.
+ *
+ * COLLABORATION is a two-way working relationship with a company — joint
+ * research, paid consultancy, mentoring their engineers, going in to lecture. The
+ * academician brings the expertise.
+ *
+ * PROGRAMME is something the academician attends to learn: an FDP, a workshop, a
+ * stint inside a company. The company brings the expertise.
+ *
+ * That is the difference between the dashboard's "Collaboration Opportunities"
+ * and "Upcoming Programs" cards. Mirrors the server's two arrays.
+ */
+export const COLLABORATION_TYPES = Object.freeze([
+  OPPORTUNITY_TYPES.MENTORSHIP,
+  OPPORTUNITY_TYPES.RESEARCH_COLLABORATION,
+  OPPORTUNITY_TYPES.CONSULTANCY,
+  OPPORTUNITY_TYPES.GUEST_LECTURE,
+]);
+
+export const PROGRAMME_TYPES = Object.freeze([
+  OPPORTUNITY_TYPES.FACULTY_INTERNSHIP,
+  OPPORTUNITY_TYPES.INDUSTRIAL_TRAINING,
+  OPPORTUNITY_TYPES.FDP,
+  OPPORTUNITY_TYPES.WORKSHOP,
+]);
+
+export const isCollaborationType = (type) => COLLABORATION_TYPES.includes(type);
+export const isProgrammeType = (type) => PROGRAMME_TYPES.includes(type);
 
 /** Matches the server's WORK_MODES. */
 export const WORK_MODES = Object.freeze({
@@ -183,11 +315,23 @@ export const availabilityFor = ({ status, deadline } = {}, now = new Date()) => 
   return deadlineTime >= now.getTime() ? AVAILABILITY.OPEN : AVAILABILITY.EXPIRED;
 };
 
-/** Types where a duration field is worth showing. Mirrors DURATION_RELEVANT_TYPES. */
+/**
+ * Types where a duration field is worth showing. Mirrors DURATION_RELEVANT_TYPES.
+ *
+ * The academician additions are the ones that run for a stretch of months: a
+ * faculty internship or industrial training placement, a research collaboration, a
+ * consultancy engagement. Absent are FDP, workshop and guest lecture, which are
+ * measured in days or hours and whose length belongs in the description, and
+ * mentorship, which is open-ended by nature.
+ */
 export const DURATION_RELEVANT_TYPES = Object.freeze([
   OPPORTUNITY_TYPES.INTERNSHIP,
   OPPORTUNITY_TYPES.APPRENTICESHIP,
   OPPORTUNITY_TYPES.PROJECT,
+  OPPORTUNITY_TYPES.FACULTY_INTERNSHIP,
+  OPPORTUNITY_TYPES.INDUSTRIAL_TRAINING,
+  OPPORTUNITY_TYPES.RESEARCH_COLLABORATION,
+  OPPORTUNITY_TYPES.CONSULTANCY,
 ]);
 
 export const hasMeaningfulDuration = (type) => DURATION_RELEVANT_TYPES.includes(type);

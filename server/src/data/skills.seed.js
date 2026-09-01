@@ -6,9 +6,19 @@
  * unrelated frontend and backend files." The same applies to skills. The
  * frontend never carries a copy of this list; it fetches GET /api/v1/skills.
  *
- * TRD.md section 44 asks for 25-40 skills. There are 36 here, which is enough to
+ * TRD.md section 44 asks for 25-40 skills. There are 39 here, which is enough to
  * build every career-role blueprint in careerRoles.seed.js and still leave a
  * student room to list skills no single role demands.
+ *
+ * STEP 7 ADDED THREE, ALL IN AI/ML, AND THE CEILING IS WHY IT WAS ONLY THREE.
+ * Computer Vision is required rather than optional: the academician brief names it
+ * in its own worked example of an expertise match, and the demo research
+ * collaboration is a computer vision project. TensorFlow and PyTorch went in
+ * alongside it because a vision researcher's profile that lists neither reads as
+ * invented, and Pandas was already the precedent for naming a library. Nothing
+ * else was added — the other academician postings were pointed at catalogue
+ * entries that already say the same thing, because a near-duplicate skill splits
+ * the matching signal between two rows that mean one thing.
  *
  * Slugs are NOT written here — Skill.js derives each one from `name`, so the name
  * is the only thing that can be got wrong. The seed script upserts on the
@@ -213,6 +223,24 @@ export const SKILL_SEED = Object.freeze([
     category: TECHNICAL,
     tags: ['AI/ML'],
     description: 'Text preprocessing, embeddings, classification and language models.',
+  },
+  {
+    name: 'Computer Vision',
+    category: TECHNICAL,
+    tags: ['AI/ML'],
+    description: 'Image and video understanding: detection, segmentation and inference on device.',
+  },
+  {
+    name: 'TensorFlow',
+    category: TECHNICAL,
+    tags: ['AI/ML'],
+    description: 'Building, training and exporting models with TensorFlow and Keras.',
+  },
+  {
+    name: 'PyTorch',
+    category: TECHNICAL,
+    tags: ['AI/ML'],
+    description: 'Tensors, autograd, training loops and deployment with TorchScript.',
   },
 
   // -------------------------------------------------------------------- Security

@@ -56,4 +56,40 @@ export const isValidRole = (role) => ROLE_VALUES.includes(role);
 export const isPubliclyRegisterableRole = (role) =>
   PUBLIC_REGISTRATION_ROLES.includes(role);
 
+/**
+ * The roles that can hold an Application (Step 7).
+ *
+ * A SUBSET OF `ROLES`, NOT A SECOND LIST. These are the two roles that apply *to*
+ * things rather than post them: a student applies to an internship, an academician
+ * registers for a faculty programme or a research collaboration. Industry posts and
+ * reviews, institution reads analytics, admin administers — none of them are ever
+ * the applicant, so widening this set would mean an employer could apply to their
+ * own posting.
+ *
+ * Derived from `ROLES` rather than written out, so a future rename of a role value
+ * cannot leave this list pointing at a string that no longer exists.
+ */
+export const APPLICANT_ROLES = Object.freeze({
+  STUDENT: ROLES.STUDENT,
+  ACADEMICIAN: ROLES.ACADEMICIAN,
+});
+
+export const APPLICANT_ROLE_VALUES = Object.freeze(Object.values(APPLICANT_ROLES));
+
+/**
+ * What an application with no stored role must be.
+ *
+ * Every application written before Step 7 was made by a student, because no other
+ * role could apply — so this default makes each of those rows correct exactly as it
+ * already sits on disk, with no backfill. The same caveat as `audience` on
+ * Opportunity applies and for the same reason: Mongoose fills this in when it
+ * *hydrates* a legacy document, but a query filter of
+ * `{ applicantRole: 'STUDENT' }` would not match one. Nothing currently queries on
+ * this field; anything that starts to must handle the missing key, the way
+ * `audienceQuery()` does in constants/opportunities.js.
+ */
+export const DEFAULT_APPLICANT_ROLE = APPLICANT_ROLES.STUDENT;
+
+export const isApplicantRole = (role) => APPLICANT_ROLE_VALUES.includes(role);
+
 export default ROLES;

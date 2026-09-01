@@ -7,6 +7,7 @@
  */
 
 import { Router } from 'express';
+import academicianRoutes from './academician.routes.js';
 import analyticsRoutes from './analytics.routes.js';
 import applicationRoutes from './application.routes.js';
 import assessmentRoutes from './assessment.routes.js';
@@ -23,6 +24,7 @@ const mounts = [
   ['/health', healthRoutes],
   ['/auth', authRoutes],
   ['/students', studentRoutes],
+  ['/academicians', academicianRoutes],
   ['/skills', skillRoutes],
   ['/career-roles', careerRoleRoutes],
   ['/opportunities', opportunityRoutes],

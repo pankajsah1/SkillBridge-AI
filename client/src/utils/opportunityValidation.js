@@ -19,9 +19,14 @@
 
 import {
   CREATABLE_OPPORTUNITY_STATUSES,
+  DEFAULT_AUDIENCE,
   hasMeaningfulDuration,
+  isTypeAllowedForAudience,
+  isValidAudience,
   OPPORTUNITY_LIMITS,
+  OPPORTUNITY_TYPE_LABELS,
   OPPORTUNITY_TYPE_VALUES,
+  TYPES_BY_AUDIENCE,
   WORK_MODE_VALUES,
 } from '../constants/opportunities.js';
 import { SKILL_LEVEL_MAX, SKILL_LEVEL_MIN } from '../constants/skills.js';
@@ -30,6 +35,11 @@ import { SKILL_LEVEL_MAX, SKILL_LEVEL_MIN } from '../constants/skills.js';
 export const emptyOpportunityForm = () => ({
   title: '',
   type: '',
+  // Students unless the employer says otherwise, matching the server's
+  // DEFAULT_AUDIENCE. Pre-filled rather than blank because the overwhelming
+  // majority of postings are student-facing and an empty required field on load is
+  // one more thing between an employer and a published opportunity.
+  audience: DEFAULT_AUDIENCE,
   description: '',
   location: '',
   workMode: '',
@@ -283,8 +293,25 @@ export const validateOpportunityForm = (form = {}) => {
   });
   if (locationError) errors.location = locationError;
 
+  /**
+   * Type, then the type/audience pair — in that order, and the order is the point.
+   *
+   * An unrecognised type gets the plain "choose a valid type" message rather than a
+   * confusing complaint about audiences, exactly as the server's validator does. The
+   * pair check only speaks once the type itself is real.
+   */
+  const audience = isValidAudience(form.audience) ? form.audience : DEFAULT_AUDIENCE;
+
   if (!trimmed(form.type)) errors.type = 'Opportunity type is required.';
   else if (!OPPORTUNITY_TYPE_VALUES.includes(form.type)) errors.type = 'Choose a valid type.';
+  else if (!isTypeAllowedForAudience(form.type, audience)) {
+    const allowed = TYPES_BY_AUDIENCE[audience]
+      .map((type) => OPPORTUNITY_TYPE_LABELS[type])
+      .join(', ');
+    errors.type = `${OPPORTUNITY_TYPE_LABELS[form.type]} cannot be offered to this audience. Choose one of: ${allowed}.`;
+  }
+
+  if (!isValidAudience(form.audience)) errors.audience = 'Choose who this posting is for.';
 
   if (!trimmed(form.workMode)) errors.workMode = 'Work mode is required.';
   else if (!WORK_MODE_VALUES.includes(form.workMode)) errors.workMode = 'Choose a valid work mode.';
@@ -369,6 +396,11 @@ export const validateOpportunityForm = (form = {}) => {
 export const formFromOpportunity = (opportunity = {}) => ({
   title: opportunity.title ?? '',
   type: opportunity.type ?? '',
+  // Read back so the type dropdown offers the right eight or four when editing.
+  // A posting created before Step 7 has no stored audience at all, and `student`
+  // is the correct reading of that absence — the same rule the server's
+  // `audienceQuery` relies on.
+  audience: isValidAudience(opportunity.audience) ? opportunity.audience : DEFAULT_AUDIENCE,
   description: opportunity.description ?? '',
   location: opportunity.location ?? '',
   workMode: opportunity.workMode ?? '',
@@ -416,6 +448,14 @@ export const buildOpportunityPayload = (form = {}) => {
   const payload = {
     title: trimmed(form.title),
     type: form.type,
+    // Always sent, never guessed. The server defaults a missing audience to
+    // `student`, so omitting it would work — but it would also mean the one field
+    // that decides who can ever see this posting travelled implicitly. Note that
+    // `buildOpportunityPatch` below enumerates the fields it copies and `audience`
+    // is not among them, which is what keeps this out of a PATCH body: the API
+    // rejects an audience change outright, since a posting students have already
+    // seen cannot quietly become a faculty programme.
+    audience: isValidAudience(form.audience) ? form.audience : DEFAULT_AUDIENCE,
     description: trimmed(form.description),
     location: trimmed(form.location),
     workMode: form.workMode,

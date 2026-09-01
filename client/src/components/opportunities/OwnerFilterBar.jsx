@@ -14,10 +14,10 @@
  */
 
 import {
+  ALL_TYPE_ORDER,
   OPPORTUNITY_STATUS_LABELS,
   OPPORTUNITY_STATUS_VALUES,
   OPPORTUNITY_TYPE_LABELS,
-  OPPORTUNITY_TYPE_ORDER,
 } from '../../constants/opportunities.js';
 import Button from '../ui/Button.jsx';
 import Select from '../ui/Select.jsx';
@@ -28,7 +28,15 @@ const statusOptions = OPPORTUNITY_STATUS_VALUES.map((status) => ({
   label: OPPORTUNITY_STATUS_LABELS[status],
 }));
 
-const typeOptions = OPPORTUNITY_TYPE_ORDER.map((type) => ({
+/**
+ * ALL twelve types, not the four the student bar offers.
+ *
+ * This is the one list in the app that legitimately spans both audiences: an
+ * employer who posted an internship and an FDP owns both, and filtering their own
+ * work by an audience they never chose would hide half of it. The server's query
+ * validator agrees — it restricts the type filter by audience only for discovery.
+ */
+const typeOptions = ALL_TYPE_ORDER.map((type) => ({
   value: type,
   label: OPPORTUNITY_TYPE_LABELS[type],
 }));

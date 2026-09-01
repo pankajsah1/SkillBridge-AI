@@ -18,16 +18,26 @@
  * field" comes from. Client validation here is a courtesy that saves a round trip;
  * server/src/validators/opportunity.validator.js is what actually enforces the
  * rules.
+ *
+ * AUDIENCE IS THE FIRST REAL DECISION ON THIS FORM (Step 7). It decides which
+ * opportunity types exist, whether graduation years are a sensible question, and who
+ * will ever see the posting — so it is asked before the type and it is create-only,
+ * because the API refuses to change it afterwards. Everything downstream of it
+ * changes wording rather than structure: this is still one form, not two.
  */
 
 import { useEffect, useState } from 'react';
 
 import {
+  AUDIENCE_LABELS,
+  AUDIENCE_VALUES,
+  DEFAULT_AUDIENCE,
   hasMeaningfulDuration,
+  isTypeAllowedForAudience,
   OPPORTUNITY_LIMITS,
   OPPORTUNITY_STATUSES,
   OPPORTUNITY_TYPE_LABELS,
-  OPPORTUNITY_TYPE_ORDER,
+  typeOrderFor,
   WORK_MODE_LABELS,
   WORK_MODE_ORDER,
 } from '../../constants/opportunities.js';
@@ -45,10 +55,22 @@ import Select from '../ui/Select.jsx';
 import Textarea from '../ui/Textarea.jsx';
 import SkillRequirementPicker from './SkillRequirementPicker.jsx';
 
-const typeOptions = OPPORTUNITY_TYPE_ORDER.map((type) => ({
-  value: type,
-  label: OPPORTUNITY_TYPE_LABELS[type],
+const audienceOptions = AUDIENCE_VALUES.map((audience) => ({
+  value: audience,
+  label: AUDIENCE_LABELS[audience],
 }));
+
+/**
+ * The type list depends on the audience, so it is built per render rather than once
+ * at module scope. Twelve types share one enum but no type is legal for both
+ * audiences — the server enforces that pair, and offering an option it would reject
+ * is the kind of form that teaches employers to distrust their own screen.
+ */
+const typeOptionsFor = (audience) =>
+  typeOrderFor(audience).map((type) => ({
+    value: type,
+    label: OPPORTUNITY_TYPE_LABELS[type],
+  }));
 
 const workModeOptions = WORK_MODE_ORDER.map((mode) => ({
   value: mode,
@@ -188,6 +210,60 @@ export default function OpportunityForm({
     clearError('durationMonths');
   };
 
+  /**
+   * Changing the audience clears the type, because no type is legal for both.
+   *
+   * The alternative — leaving "Internship" selected after switching to faculty —
+   * would show a valid-looking form that the API refuses, and the refusal would
+   * arrive on `type`, a field the employer had not touched. Clearing is the honest
+   * move: it says plainly that this choice has to be made again.
+   *
+   * The duration goes with it, for the same reason `changeType` drops it.
+   */
+  const changeAudience = (audience) => {
+    setForm((previous) =>
+      previous.audience === audience
+        ? previous
+        : {
+            ...previous,
+            audience,
+            type: '',
+            durationMonths: '',
+            // Graduation years are a student question. Leaving a typed value behind
+            // when the audience becomes faculty would send an eligibility rule the
+            // employer can no longer see, and the form must never hold data it does
+            // not show.
+            eligibility: {
+              ...previous.eligibility,
+              minGraduationYear: '',
+              maxGraduationYear: '',
+            },
+          },
+    );
+    clearError('audience');
+    clearError('type');
+    clearError('durationMonths');
+    clearError('eligibility.minGraduationYear');
+    clearError('eligibility.maxGraduationYear');
+  };
+
+  const showsDuration = hasMeaningfulDuration(form.type);
+  const isCreating = mode === 'create';
+
+  const audience = form.audience ?? DEFAULT_AUDIENCE;
+  const typeOptions = typeOptionsFor(audience);
+  const isForAcademicians = audience !== DEFAULT_AUDIENCE;
+
+  /**
+   * A stored type that does not belong to the stored audience.
+   *
+   * Only reachable if the two ever disagreed in the database, which the model
+   * prevents — but a Select whose value is absent from its options renders as blank
+   * and silently loses the employer's data on the next save, so it gets a real
+   * message instead of a shrug.
+   */
+  const typeOutOfRange = Boolean(form.type) && !isTypeAllowedForAudience(form.type, audience);
+
   const submit = (statusOverride) => {
     const candidate = statusOverride ? { ...form, status: statusOverride } : form;
     const found = validateOpportunityForm(candidate);
@@ -200,9 +276,6 @@ export default function OpportunityForm({
     if (statusOverride) setForm(candidate);
     onSubmit(candidate);
   };
-
-  const showsDuration = hasMeaningfulDuration(form.type);
-  const isCreating = mode === 'create';
 
   // `body` is the server's key for "something about the request as a whole" — there
   // is no input to hang it on, so it goes in the banner.
@@ -227,7 +300,11 @@ export default function OpportunityForm({
 
       <FormSection
         title="The role"
-        description="What students will see first in the listing."
+        description={
+          isForAcademicians
+            ? 'What faculty will see first in the listing.'
+            : 'What students will see first in the listing.'
+        }
       >
         <Input
           label="Title"
@@ -235,9 +312,31 @@ export default function OpportunityForm({
           value={form.title}
           onChange={(event) => setField('title', event.target.value)}
           error={errors.title}
-          placeholder="Frontend Developer Intern"
+          placeholder={
+            isForAcademicians
+              ? 'Industry-Academia Computer Vision Research Collaboration'
+              : 'Frontend Developer Intern'
+          }
           hint={`Up to ${OPPORTUNITY_LIMITS.titleMax} characters.`}
           disabled={isSaving}
+          required
+        />
+
+        {/* Audience precedes type because it decides which types exist. Asked in the
+            other order, the employer would pick a type and then watch it disappear. */}
+        <Select
+          label="Who is this for?"
+          name="audience"
+          value={audience}
+          onChange={(event) => changeAudience(event.target.value)}
+          options={audienceOptions}
+          error={errors.audience}
+          hint={
+            isCreating
+              ? 'Faculty postings — FDPs, research collaborations, consultancy — appear on the academician side of the platform, never in student search.'
+              : 'Set when the posting was created and fixed afterwards. To reach the other audience, close this posting and create a new one.'
+          }
+          disabled={isSaving || !isCreating}
           required
         />
 
@@ -248,7 +347,12 @@ export default function OpportunityForm({
           onChange={(event) => changeType(event.target.value)}
           options={typeOptions}
           placeholder="Choose a type"
-          error={errors.type}
+          error={
+            errors.type ??
+            (typeOutOfRange
+              ? 'This type does not belong to the selected audience. Choose one from the list.'
+              : undefined)
+          }
           disabled={isSaving}
           required
         />
@@ -261,8 +365,14 @@ export default function OpportunityForm({
           error={errors.description}
           rows={8}
           maxLength={OPPORTUNITY_LIMITS.descriptionMax}
-          placeholder="What the work involves, what the team is like, and what a student will learn."
-          hint={`At least ${OPPORTUNITY_LIMITS.descriptionMin} characters. Be specific — this is what makes a student apply.`}
+          placeholder={
+            isForAcademicians
+              ? 'The problem you want to work on, what the collaboration involves, and what the department gets out of it.'
+              : 'What the work involves, what the team is like, and what a student will learn.'
+          }
+          hint={`At least ${OPPORTUNITY_LIMITS.descriptionMin} characters. Be specific — this is what makes ${
+            isForAcademicians ? 'a department engage' : 'a student apply'
+          }.`}
           disabled={isSaving}
           required
         />
@@ -327,7 +437,7 @@ export default function OpportunityForm({
               onChange={(event) => setField('durationMonths', event.target.value)}
               error={errors.durationMonths}
               placeholder="6"
-              hint="Optional. Only internships, apprenticeships and projects have one."
+              hint="Optional. Only shown for the types that run for a stretch of months."
               disabled={isSaving}
             />
           ) : null}
@@ -336,11 +446,19 @@ export default function OpportunityForm({
 
       <FormSection
         title="Skills"
-        description="Chosen from the shared catalogue, so the same skill means the same thing on every posting and on every student profile."
+        description={
+          isForAcademicians
+            ? 'Chosen from the shared catalogue, so the expertise you ask for is matched against the same vocabulary academicians describe themselves in.'
+            : 'Chosen from the shared catalogue, so the same skill means the same thing on every posting and on every student profile.'
+        }
       >
         <SkillRequirementPicker
           label="Required skills"
-          description="Must-haves, each with the level you expect. At least one."
+          description={
+            isForAcademicians
+              ? 'The expertise this needs, each with the depth you expect. At least one — this is what the match explanation is built from.'
+              : 'Must-haves, each with the level you expect. At least one.'
+          }
           field="requiredSkills"
           entries={form.requiredSkills}
           onChange={(entries) => setSkillList('requiredSkills', entries)}
@@ -356,7 +474,11 @@ export default function OpportunityForm({
 
         <SkillRequirementPicker
           label="Preferred skills"
-          description="Nice-to-haves. No level needed — a student who has one is a bonus, not a requirement."
+          description={
+            isForAcademicians
+              ? 'Nice-to-haves. No level needed — these show up as "additional relevant expertise" in the match explanation rather than as a requirement.'
+              : 'Nice-to-haves. No level needed — a student who has one is a bonus, not a requirement.'
+          }
           field="preferredSkills"
           entries={form.preferredSkills}
           onChange={(entries) => setSkillList('preferredSkills', entries)}
@@ -372,45 +494,58 @@ export default function OpportunityForm({
 
       <FormSection
         title="Who can apply"
-        description="All optional. Left empty, the posting is open to every student."
+        description={
+          isForAcademicians
+            ? 'All optional. Left empty, the posting is open to every academician.'
+            : 'All optional. Left empty, the posting is open to every student.'
+        }
       >
         <ChipListField
-          label="Eligible branches"
+          label={isForAcademicians ? 'Eligible departments' : 'Eligible branches'}
           value={form.eligibility.branches}
           onChange={(branches) => setEligibilityField('branches', branches)}
           validate={validateNewBranch}
           max={OPPORTUNITY_LIMITS.maxBranches}
           placeholder="Computer Science and Engineering"
-          addLabel="Add branch"
-          fullMessage="You have listed the maximum number of branches"
-          hint="Press Enter to add. Leave empty to accept every branch."
+          addLabel={isForAcademicians ? 'Add department' : 'Add branch'}
+          fullMessage={`You have listed the maximum number of ${
+            isForAcademicians ? 'departments' : 'branches'
+          }`}
+          hint={`Press Enter to add. Leave empty to accept every ${
+            isForAcademicians ? 'department' : 'branch'
+          }.`}
           error={errors['eligibility.branches']}
           disabled={isSaving}
         />
 
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Input
-            label="Earliest graduation year"
-            name="minGraduationYear"
-            type="number"
-            value={form.eligibility.minGraduationYear}
-            onChange={(event) => setEligibilityField('minGraduationYear', event.target.value)}
-            error={errors['eligibility.minGraduationYear']}
-            placeholder="2026"
-            disabled={isSaving}
-          />
+        {/* Graduation years are a student question and nothing else. An FDP does not
+            have a graduating cohort, so the fields are absent rather than disabled —
+            a greyed-out input still implies the question was worth asking. */}
+        {isForAcademicians ? null : (
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Input
+              label="Earliest graduation year"
+              name="minGraduationYear"
+              type="number"
+              value={form.eligibility.minGraduationYear}
+              onChange={(event) => setEligibilityField('minGraduationYear', event.target.value)}
+              error={errors['eligibility.minGraduationYear']}
+              placeholder="2026"
+              disabled={isSaving}
+            />
 
-          <Input
-            label="Latest graduation year"
-            name="maxGraduationYear"
-            type="number"
-            value={form.eligibility.maxGraduationYear}
-            onChange={(event) => setEligibilityField('maxGraduationYear', event.target.value)}
-            error={errors['eligibility.maxGraduationYear']}
-            placeholder="2027"
-            disabled={isSaving}
-          />
-        </div>
+            <Input
+              label="Latest graduation year"
+              name="maxGraduationYear"
+              type="number"
+              value={form.eligibility.maxGraduationYear}
+              onChange={(event) => setEligibilityField('maxGraduationYear', event.target.value)}
+              error={errors['eligibility.maxGraduationYear']}
+              placeholder="2027"
+              disabled={isSaving}
+            />
+          </div>
+        )}
 
         <Textarea
           label="Anything else"
@@ -420,7 +555,11 @@ export default function OpportunityForm({
           error={errors['eligibility.notes']}
           rows={3}
           maxLength={OPPORTUNITY_LIMITS.eligibilityNotesMax}
-          placeholder="Minimum CGPA, ongoing coursework, anything a student should know before applying."
+          placeholder={
+            isForAcademicians
+              ? 'Minimum years of teaching experience, prior publications, institutional approval — anything a faculty member should know before registering.'
+              : 'Minimum CGPA, ongoing coursework, anything a student should know before applying.'
+          }
           disabled={isSaving}
         />
       </FormSection>
@@ -458,7 +597,8 @@ export default function OpportunityForm({
 
         {isCreating ? (
           <p className="text-xs text-slate-500">
-            A published opportunity is visible to students straight away. A draft is
+            A published opportunity is visible to{' '}
+            {isForAcademicians ? 'academicians' : 'students'} straight away. A draft is
             visible only to you.
           </p>
         ) : null}

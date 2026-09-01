@@ -48,9 +48,141 @@ export const DEMO_INSTITUTION = {
   email: 'institution@skillbridge.demo',
 };
 
+/**
+ * Academician demo persona (Step 7).
+ *
+ * Dr. Ananya Sharma is the Phase 7 example from the brief: Machine Learning, Python,
+ * Computer Vision as core expertise, plus Deep Learning as a preferred skill that
+ * makes the match explanation honest ("Additional relevant expertise: Deep Learning").
+ * The CV collaboration posting below lists ML/Python/CV as required and Deep Learning
+ * as preferred, so the match breakdown on her dashboard will demonstrate the Phase 7
+ * split.
+ *
+ * WRITTEN IN AcademicianProfile's OWN VOCABULARY, not a friendlier one. `institutionName`
+ * rather than `institution`, `designation: 'associate_professor'` rather than "Associate
+ * Professor", one `experiences` array discriminated by `experienceType` rather than a
+ * separate professional and industry list, and `achievements` as typed objects. A seed
+ * that invents its own field names does not fail loudly — Mongoose drops unknown paths
+ * silently and the demo profile simply arrives half empty — so the shape here is the
+ * schema's shape, and the completion score the model computes is the proof.
+ *
+ * `expertise` KEEPS ITS TUPLE FORM, `[slug, level]`, because that is the seed's
+ * convention for every catalogue-backed skill list including DEMO_STUDENTS.skills; the
+ * seeder resolves the slugs and builds `skills` entries from them.
+ */
 export const DEMO_ACADEMICIAN = {
-  name: 'Dr. Meera Raghavan',
+  name: 'Dr. Ananya Sharma',
   email: 'academician@skillbridge.demo',
+  headline: 'Associate Professor, Computer Vision and Edge AI',
+  bio:
+    'I work on making vision models small enough and reliable enough to run on a factory floor rather than a benchmark. Most of my collaborations start with a company that has cameras, a defect they cannot describe precisely, and no labelled data — which is the interesting part.',
+  institutionName: 'Anna University Regional Campus',
+  department: 'Computer Science and Engineering',
+  designation: 'associate_professor',
+  location: 'Chennai',
+  expertiseAreas: [
+    'Machine Learning',
+    'Computer Vision',
+    'Deep Learning',
+    'Edge AI',
+    'Model Optimization',
+  ],
+  expertise: [
+    ['python', 95],
+    ['machine-learning', 92],
+    ['computer-vision', 90],
+    ['deep-learning', 88],
+    ['tensorflow', 85],
+    ['pytorch', 82],
+    ['data-structures-algorithms', 78],
+  ],
+  researchInterests: [
+    'Computer vision for industrial applications',
+    'Deep learning model optimization',
+    'Edge AI and embedded systems',
+    'Explainable machine learning',
+    'Real-world ML deployment',
+  ],
+  education: [
+    {
+      degree: 'Ph.D. in Computer Science',
+      fieldOfStudy: 'Computer Vision and Pattern Recognition',
+      institution: 'Indian Institute of Science, Bangalore',
+      year: 2018,
+    },
+    {
+      degree: 'M.Tech in Computer Science',
+      fieldOfStudy: 'Machine Learning',
+      institution: 'IIT Madras',
+      year: 2013,
+    },
+  ],
+  /**
+   * Teaching, research and industry in one array — see `ACADEMIC_EXPERIENCE_TYPES`.
+   *
+   * `[year, month]` pairs rather than Date objects or ISO strings, so the file stays
+   * readable and the seeder does the constructing. The Bosch entry is what earns the
+   * `industryExperience` completion section, which is the one an industry partner
+   * reading her profile cares about most.
+   */
+  experiences: [
+    {
+      organization: 'Anna University Regional Campus',
+      role: 'Associate Professor',
+      experienceType: 'academic',
+      start: [2018, 7],
+      isCurrent: true,
+      description:
+        'Teaching graduate courses in machine learning, deep learning and computer vision, and supervising M.Tech theses on industrial CV applications.',
+    },
+    {
+      organization: 'Anna University Regional Campus',
+      role: 'Principal Investigator, DST-SERB Edge AI project',
+      experienceType: 'research',
+      start: [2021, 1],
+      end: [2024, 3],
+      description:
+        'Led a ₹18 lakh DST-SERB funded project on running vision models on constrained edge hardware, with two industry partners and three research scholars.',
+    },
+    {
+      organization: 'Bosch AI Research',
+      role: 'Research Intern',
+      experienceType: 'industry',
+      start: [2017, 1],
+      end: [2017, 7],
+      description:
+        'Developed defect detection algorithms for automotive manufacturing. Published at a CVPR workshop on industrial computer vision.',
+    },
+  ],
+  achievements: [
+    {
+      title: 'Efficient attention for on-device defect detection',
+      achievementType: 'publication',
+      issuingOrganization: 'Indian Conference on Computer Vision',
+      year: 2019,
+      description: 'Best Paper Award.',
+    },
+    {
+      title: 'Excellence in Teaching Award',
+      achievementType: 'award',
+      issuingOrganization: 'Anna University',
+      year: 2022,
+    },
+    {
+      title: 'Efficient neural network architectures for embedded inference',
+      achievementType: 'patent',
+      issuingOrganization: 'Indian Patent Office',
+      year: 2021,
+      description: 'Three filings on the same family of architectures.',
+    },
+    {
+      title: 'Edge AI for industrial inspection',
+      achievementType: 'grant',
+      issuingOrganization: 'DST-SERB',
+      year: 2021,
+      description: '₹18 lakhs, 2021-2024.',
+    },
+  ],
 };
 
 /** A second college, so the cohort filter has something to exclude. */
@@ -1033,6 +1165,134 @@ export const DEMO_OPPORTUNITIES = [
     preferred: [],
     eligibility: {},
   },
+
+  /* ---- Academician-facing opportunities (Step 7) ----------------------------- */
+  {
+    employer: 'northwind',
+    title: 'Industry-Academia Computer Vision Research Collaboration',
+    type: 'research_collaboration',
+    audience: 'academician',
+    workMode: 'hybrid',
+    location: 'Chennai / Bengaluru',
+    deadlineInDays: 35,
+    durationMonths: 12,
+    openings: 2,
+    description:
+      'Joint research on real-time defect detection in manufacturing. We bring the production data and the deployment constraints; you bring the academic rigour and the novel approaches. This is a funded collaboration with publication opportunities and regular on-site engagements. Ideal for faculty with computer vision expertise looking to bridge research and industrial application.',
+    required: [
+      ['python', 80, 25],
+      ['machine-learning', 85, 30],
+      ['computer-vision', 85, 30],
+    ],
+    preferred: [['deep-learning', 60, 100]],
+    eligibility: {},
+  },
+  {
+    employer: 'lumen',
+    title: 'Faculty Development Programme — Generative AI in Production',
+    type: 'fdp',
+    audience: 'academician',
+    workMode: 'onsite',
+    location: 'Chennai',
+    deadlineInDays: 28,
+    /* Two weeks, which is not a whole number of months. `null` is the schema's
+       "not stated" — `0` fails its `min: 1`, and rounding to 1 would be a lie. */
+    durationMonths: null,
+    openings: 20,
+    description:
+      'A two-week intensive FDP on deploying generative AI systems in production environments. Topics: prompt engineering, RAG architectures, evaluation frameworks, cost optimization, and responsible AI practices. Led by our AI team with hands-on sessions using real production systems. Certificate provided. No prior GenAI experience required, but solid ML fundamentals expected.',
+    required: [
+      ['python', 70, 40],
+      ['machine-learning', 75, 60],
+    ],
+    preferred: [],
+    eligibility: {},
+  },
+  {
+    employer: 'sentinel',
+    title: 'Industrial Training Programme for Faculty — Cloud Infrastructure',
+    type: 'industrial_training',
+    audience: 'academician',
+    workMode: 'hybrid',
+    location: 'Chennai',
+    deadlineInDays: 42,
+    durationMonths: 2,
+    openings: 5,
+    description:
+      'A two-month industrial training designed for faculty teaching cloud computing or distributed systems. You will work alongside our platform team on real infrastructure: Kubernetes cluster management, observability pipelines, cost optimization, and incident response. Weekly knowledge-sharing sessions. Perfect for updating curriculum with industry practices.',
+    required: [
+      ['linux', 65, 30],
+      ['docker', 60, 30],
+      ['system-design', 65, 40],
+    ],
+    preferred: [['kubernetes', 50, 100], ['aws', 50, 100]],
+    eligibility: {},
+  },
+  {
+    employer: 'northwind',
+    title: 'Guest Lecture Series on Data Engineering',
+    type: 'guest_lecture',
+    audience: 'academician',
+    workMode: 'remote',
+    location: 'Remote',
+    deadlineInDays: 15,
+    /* A 60-90 minute session has no duration in months. See the FDP above. */
+    durationMonths: null,
+    openings: 3,
+    description:
+      'Deliver a guest lecture (or short series) to our data engineering team on academic advances in data modeling, query optimization, or distributed data systems. 60-90 minute sessions, followed by Q&A. Honorarium provided. This is a knowledge exchange: we want to know what academia is exploring that industry has not caught up to yet.',
+    required: [
+      ['sql', 70, 40],
+      ['data-modeling', 75, 40],
+      ['communication', 70, 20],
+    ],
+    preferred: [['system-design', 60, 100]],
+    eligibility: {},
+  },
+  {
+    employer: 'lumen',
+    title: 'Consultancy — Web Performance Audit',
+    type: 'consultancy',
+    audience: 'academician',
+    workMode: 'remote',
+    location: 'Remote',
+    deadlineInDays: 20,
+    durationMonths: 3,
+    openings: 1,
+    description:
+      'Paid consultancy to audit and improve the performance of our customer-facing web application. We need an expert external perspective on rendering bottlenecks, bundle optimization, and caching strategies. Deliverables: detailed audit report, prioritized recommendations, and a follow-up session with the engineering team. Fixed-fee contract.',
+    required: [
+      ['javascript', 80, 40],
+      ['react', 75, 30],
+      /* Caching and trade-offs are what System Design names in the catalogue, and
+         the audit's third leg is caching strategy. A "Web Performance" entry was
+         considered and dropped: it would have overlapped these three. */
+      ['system-design', 70, 30],
+    ],
+    preferred: [],
+    eligibility: {},
+  },
+  {
+    employer: 'sentinel',
+    title: 'Mentorship Programme for Junior Engineers',
+    type: 'mentorship',
+    audience: 'academician',
+    workMode: 'hybrid',
+    location: 'Chennai',
+    deadlineInDays: 30,
+    durationMonths: 6,
+    openings: 4,
+    description:
+      'Mentor a cohort of our junior engineers (1-2 years experience) on software design fundamentals, problem-solving approaches, and career development. Monthly on-site sessions plus asynchronous support. We are looking for patient educators who can translate academic CS concepts into practical guidance. Stipend provided.',
+    required: [
+      ['data-structures-algorithms', 75, 40],
+      ['system-design', 70, 30],
+      ['communication', 75, 30],
+    ],
+    preferred: [['problem-solving', 65, 100]],
+    eligibility: {},
+  },
+
   /* ---- Not open to students, for the industry dashboard's other counts ---- */
   {
     employer: 'northwind',
@@ -1159,6 +1419,31 @@ export const DEMO_APPLICATIONS = [
   { student: 'gautam.reddy@student.demo', posting: 'Full Stack Engineer (Entry Level)', status: 'interview',
     coverNote: 'I have deployed two side projects to AWS.' },
   { student: 'nisha.varma@student.demo', posting: 'Data Analyst Intern', status: 'applied' },
+
+  /* ---- Academician applications (Step 7) ------------------------------------ */
+  /* Dr. Ananya Sharma — the CV collaboration is the Phase 7 example, with ML/Python/CV
+     as required and Deep Learning as preferred. Her expertise matches perfectly, so the
+     dashboard's match explanation will demonstrate the "Strong expertise match" plus
+     "Additional relevant expertise" split that Phase 7 requires. */
+  {
+    academician: 'academician@skillbridge.demo',
+    posting: 'Industry-Academia Computer Vision Research Collaboration',
+    status: 'shortlisted',
+    note: 'Excellent fit — CV and ML expertise align perfectly with our manufacturing defect detection work. Moving to interview.',
+    coverNote: 'I have published extensively on efficient neural architectures for edge deployment and real-time defect detection. My recent work on model compression for manufacturing QA directly aligns with your needs. I would bring both research rigour and practical deployment experience to this collaboration.',
+  },
+  {
+    academician: 'academician@skillbridge.demo',
+    posting: 'Faculty Development Programme — Generative AI in Production',
+    status: 'applied',
+    coverNote: 'I am keen to update my ML curriculum with practical GenAI deployment patterns. My students need to understand not just the models but the production challenges.',
+  },
+  {
+    academician: 'academician@skillbridge.demo',
+    posting: 'Guest Lecture Series on Data Engineering',
+    status: 'under_review',
+    coverNote: 'I can speak on recent advances in learned query optimization and how academic research on adaptive indexing is beginning to influence production systems.',
+  },
 ];
 
 export default {

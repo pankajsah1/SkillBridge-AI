@@ -10,13 +10,15 @@
 > assembles a portfolio of projects, certifications, achievements and experience
 > with the documents that back them up. An **industry** account posts and manages
 > opportunities and works a ranked applicant pipeline. An **institution** account
-> sees cohort readiness, the skill gaps against live hiring, and placements.
+> sees cohort readiness, the skill gaps against live hiring, and placements. An
+> **academician** account builds a faculty profile and finds the collaborations,
+> consultancies and faculty programmes their expertise actually fits.
 >
 > **Nothing verifies a portfolio record yet.** Every record says `pending`,
 > because there is no reviewer role and no endpoint that promotes one — the field
 > is there so the badge tells the truth rather than flattering the profile.
-> Notifications are not built. The Academician and Admin dashboards remain
-> honest placeholders that list what they will contain.
+> Notifications are not built. The Admin dashboard remains an honest placeholder
+> that lists what it will contain.
 
 ---
 
@@ -63,6 +65,7 @@ skillbridge-ai/
 │   │   │   ├── matching.api.js       # readiness, recommendations, matches
 │   │   │   ├── application.api.js    # apply, my applications, applicants
 │   │   │   ├── analytics.api.js      # the institution overview, one call
+│   │   │   ├── academician.api.js    # the academician profile, dashboard, matches
 │   │   │   └── portfolio.api.js      # portfolio records + document upload
 │   │   ├── components/
 │   │   │   ├── ui/              # Button, Input, Textarea, Select, Alert,
@@ -84,6 +87,10 @@ skillbridge-ai/
 │   │   │   │   └── ApplicationStatusTimeline.jsx  # the real status history
 │   │   │   ├── industry/CandidateCard.jsx    # one ranked applicant
 │   │   │   ├── institution/AnalyticsCharts.jsx  # CSS bars, no chart library
+│   │   │   ├── academician/
+│   │   │   │   ├── AcademicianDetailsForm.jsx    # position, expertise, interests
+│   │   │   │   └── AcademicianRecordSection.jsx  # education / experience /
+│   │   │   │                                     # achievements, driven by config
 │   │   │   └── portfolio/
 │   │   │       ├── PortfolioHeader.jsx        # name, headline, completion ring
 │   │   │       ├── PortfolioSummary.jsx       # bio, education, skills, readiness
@@ -102,6 +109,9 @@ skillbridge-ai/
 │   │   │   ├── applications.js  # statuses, labels, the pipeline order
 │   │   │   ├── portfolio.js     # upload limits, type labels, badge styling —
 │   │   │   │                    # mirrors the server file of the same name
+│   │   │   ├── academicians.js  # designations, experience and achievement types
+│   │   │   ├── academicianSections.js # education / experience / achievements as
+│   │   │   │                          # data: fields, validation, card shape
 │   │   │   └── portfolioSections.js # the four record sections as data: fields,
 │   │   │                            # validation, card shape, request payload
 │   │   ├── context/AuthContext.jsx
@@ -113,6 +123,7 @@ skillbridge-ai/
 │   │   │   ├── useMyOpportunities.js # the owner's list, summary and row actions
 │   │   │   ├── useOpportunityEditor.js # create/edit form state and submission
 │   │   │   ├── useAssessmentAttempt.js # one attempt: answers, timer, submit
+│   │   │   ├── useAcademicianProfile.js # the academician profile + every write
 │   │   │   └── usePortfolio.js        # the portfolio, and every write to it
 │   │   ├── pages/
 │   │   │   ├── Login.jsx  Register.jsx
@@ -122,7 +133,7 @@ skillbridge-ai/
 │   │   │   │   ├── StudentDashboard.jsx      # profile + opportunity browsing
 │   │   │   │   ├── IndustryDashboard.jsx     # posting counts + shortcuts
 │   │   │   │   ├── InstitutionDashboard.jsx  # cohort readiness + skill gaps
-│   │   │   │   ├── AcademicianDashboard.jsx  # still a placeholder
+│   │   │   │   ├── AcademicianDashboard.jsx   # completion, matches, programmes
 │   │   │   │   └── AdminDashboard.jsx        # still a placeholder
 │   │   │   ├── student/
 │   │   │   │   ├── StudentProfile.jsx
@@ -135,10 +146,16 @@ skillbridge-ai/
 │   │   │   │   ├── MatchedOpportunities.jsx  # ranked matches, with reasons
 │   │   │   │   ├── MyApplications.jsx        # every application and its history
 │   │   │   │   └── StudentPortfolio.jsx      # the portfolio page, /student/portfolio
-│   │   │   └── industry/
-│   │   │       ├── MyOpportunities.jsx       # the owner's management list
-│   │   │       ├── OpportunityFormPage.jsx   # one page for create and edit
-│   │   │       └── OpportunityApplicants.jsx # ranked applicants + status moves
+│   │   │   ├── industry/
+│   │   │   │   ├── MyOpportunities.jsx       # the owner's management list
+│   │   │   │   ├── OpportunityFormPage.jsx   # one page for create and edit
+│   │   │   │   └── OpportunityApplicants.jsx # ranked applicants + status moves
+│   │   │   └── academician/
+│   │   │       ├── AcademicianProfile.jsx    # the academician's own profile
+│   │   │       ├── AcademicianOpportunities.jsx # collaborations and programmes
+│   │   │       ├── AcademicianOpportunityDetails.jsx # detail + expertise + apply
+│   │   │       ├── AcademicianMatches.jsx    # ranked by expertise, with reasons
+│   │   │       └── AcademicianApplications.jsx # applications and registrations
 │   │   ├── routes/
 │   │   │   ├── AppRouter.jsx    # all route definitions
 │   │   │   └── guards.jsx       # ProtectedRoute, RoleRoute, PublicOnlyRoute
@@ -169,6 +186,8 @@ skillbridge-ai/
 │   │   │   │                    # transition graph, limits, availability rules
 │   │   │   ├── assessments.js   # attempt limits, difficulty mix, scoring bands
 │   │   │   ├── applications.js  # statuses, the legal transition map, labels
+│   │   │   ├── academicians.js  # designations, experience and achievement types,
+│   │   │   │                    # and the nine profile-completion sections
 │   │   │   └── portfolio.js     # section weights, upload limits, allowed MIME
 │   │   │                        # types, document types, verification statuses
 │   │   ├── controllers/         # request/response only
@@ -180,6 +199,7 @@ skillbridge-ai/
 │   │   │   ├── assessment.controller.js
 │   │   │   ├── application.controller.js
 │   │   │   ├── analytics.controller.js  # reads req.user and nothing else
+│   │   │   ├── academician.controller.js # the profile, dashboard and matches
 │   │   │   └── portfolio.controller.js  # records, uploads, downloads
 │   │   ├── data/
 │   │   │   ├── skills.seed.js       # the seed catalogue, as plain data
@@ -197,7 +217,8 @@ skillbridge-ai/
 │   │   │   ├── StudentProfile.js    # one per student, refs User
 │   │   │   ├── Opportunity.js       # one per posting, refs User + Skill
 │   │   │   ├── Assessment.js        # one attempt, with its questions
-│   │   │   └── Application.js       # one per student per posting, unique
+│   │   │   ├── AcademicianProfile.js # one per academician, refs User + Skill
+│   │   │   └── Application.js       # one per applicant per posting, unique
 │   │   ├── routes/
 │   │   │   ├── index.js         # mounts everything under /api/v1
 │   │   │   ├── auth.routes.js
@@ -207,6 +228,7 @@ skillbridge-ai/
 │   │   │   ├── opportunity.routes.js # /opportunities and /industry
 │   │   │   ├── assessment.routes.js  # /assessments
 │   │   │   ├── application.routes.js # /applications
+│   │   │   ├── academician.routes.js # /academicians/profile and below
 │   │   │   └── analytics.routes.js   # /analytics/institution
 │   │   ├── services/            # business logic
 │   │   │   ├── auth.service.js
@@ -219,6 +241,7 @@ skillbridge-ai/
 │   │   │   ├── matching.service.js      # the match score, pure and testable
 │   │   │   ├── application.service.js   # apply, and the legal status moves
 │   │   │   ├── analytics.service.js     # the institution overview; read-only
+│   │   │   ├── academician.service.js   # the profile, its records, its matches
 │   │   │   ├── portfolio.service.js     # every query filters on the caller
 │   │   │   ├── document.service.js      # reads the raw stream, no upload library
 │   │   │   └── ai/
@@ -235,6 +258,7 @@ skillbridge-ai/
 │   │   │   ├── opportunity.validator.js
 │   │   │   ├── assessment.validator.js
 │   │   │   ├── application.validator.js
+│   │   │   ├── academician.validator.js # the profile and its three record types
 │   │   │   └── portfolio.validator.js  # the four sections + upload headers
 │   │   ├── app.js               # builds the Express app
 │   │   └── server.js            # starts it
@@ -858,8 +882,9 @@ levels are self-reported. Verification arrives with assessments.
 
 ### Endpoints
 
-The catalogue is readable by **any signed-in user**, because industry and
-academician features will need the same lists later:
+The catalogue is readable by **any signed-in user**, which is what lets an employer
+tag a posting's required skills and an academician state their expertise against
+the same 39 entries a student holds:
 
 | Method | Route | Purpose |
 | --- | --- | --- |
@@ -919,7 +944,9 @@ while saving, and validation messages appear per field.
 
 The student dashboard links to all three sections — `/student/profile`,
 `#career-goals` and `#skills` — and shows the same completion number, read from
-the same endpoint. **The other four dashboards are untouched placeholders.**
+the same endpoint. That was Step 3; the industry, institution and academician
+dashboards became real in Steps 4, 6 and 7, and only `/admin` is still a
+placeholder.
 
 Validation runs in both halves: `client/src/utils/profileValidation.js` for
 instant feedback, and `server/src/validators/studentProfile.validator.js` as the
@@ -1409,11 +1436,213 @@ The client validates before submitting, and the server validates again regardles
 
 ---
 
+## Academician portal
+
+Faculty are the other half of "academia–industry". An academician does not want an
+internship; they want a research collaboration, a consultancy, a guest lecture, or
+a faculty development programme — and a company running a Generative AI FDP needs
+a way to reach them. Step 7 adds that side without a second copy of anything.
+
+### One role, one new model
+
+`ACADEMICIAN` is the platform role. There is no separate `FACULTY` role and
+`constants/roles.js` is unchanged from Step 1 — what Step 7 added is a profile, not
+an identity. `User` still owns name, email, password hash and role;
+`AcademicianProfile` holds one document per academician keyed by a unique `userId`
+and duplicates none of it. Expertise is a reference into the same 39-skill
+`Skill` catalogue the students use, which is precisely what lets one matching
+engine score both without knowing who it is scoring.
+
+| Field group | What it holds |
+| --- | --- |
+| Position | `institutionName`, `department`, `designation` (10 values), `location` |
+| Voice | `headline`, `bio` |
+| Expertise | `expertiseAreas` free text, plus `skills[]` as `{ skillId, level }` against the catalogue |
+| Research | `researchInterests[]` |
+| Records | `education[]`, `experiences[]`, `achievements[]` — each an embedded subdocument with its own `_id` |
+
+`experiences` is **one** array discriminated by `experienceType` (`academic`,
+`industry`, `research`, `administrative`, `consultancy`, `other`) rather than a
+separate professional list and industry list. A single array is what makes
+"has this professor ever worked in industry?" a filter instead of a schema
+question, and that answer is the one a company reviewing a collaboration cares
+about most.
+
+### Endpoints
+
+Every route below sits behind one line — `router.use(authenticate,
+allowRoles(ROLES.ACADEMICIAN))` — so a route added to the file later cannot ship
+unprotected. **No route accepts a user id or a profile id.** Every handler reaches
+the caller's own profile through `req.user.id` and has no way to name another, so
+"an academician may only edit their own profile" is structural rather than a check
+that could be forgotten.
+
+| Method | Route | Auth | Purpose |
+| --- | --- | --- | --- |
+| `GET` | `/api/v1/academicians/profile` | `ACADEMICIAN` | Your profile, with expertise populated from the catalogue |
+| `POST` | `/api/v1/academicians/profile` | `ACADEMICIAN` | Create it — once; a second call is a conflict, not a second profile |
+| `PATCH` | `/api/v1/academicians/profile` | `ACADEMICIAN` | Update any subset of the scalar and array fields |
+| `GET` | `/api/v1/academicians/profile/completion` | `ACADEMICIAN` | The nine-section breakdown on its own, for the panel that refreshes after every edit |
+| `POST` | `/api/v1/academicians/profile/skills` | `ACADEMICIAN` | Add one catalogue skill with a `0–100` level |
+| `PATCH` | `/api/v1/academicians/profile/skills/:skillId` | `ACADEMICIAN` | Change that skill's level |
+| `DELETE` | `/api/v1/academicians/profile/skills/:skillId` | `ACADEMICIAN` | Remove it |
+| `POST` | `/api/v1/academicians/profile/education` | `ACADEMICIAN` | Add a degree |
+| `PATCH` | `/api/v1/academicians/profile/education/:entryId` | `ACADEMICIAN` | Edit one entry |
+| `DELETE` | `/api/v1/academicians/profile/education/:entryId` | `ACADEMICIAN` | Remove one entry |
+| `POST` | `/api/v1/academicians/profile/experiences` | `ACADEMICIAN` | Add a post, a research stint or an industry role |
+| `PATCH` | `/api/v1/academicians/profile/experiences/:entryId` | `ACADEMICIAN` | Edit one entry |
+| `DELETE` | `/api/v1/academicians/profile/experiences/:entryId` | `ACADEMICIAN` | Remove one entry |
+| `POST` | `/api/v1/academicians/profile/achievements` | `ACADEMICIAN` | Add a publication, patent, award, grant or talk |
+| `PATCH` | `/api/v1/academicians/profile/achievements/:entryId` | `ACADEMICIAN` | Edit one entry |
+| `DELETE` | `/api/v1/academicians/profile/achievements/:entryId` | `ACADEMICIAN` | Remove one entry |
+| `GET` | `/api/v1/academicians/dashboard` | `ACADEMICIAN` | Every card in one request: completion, open counts, application counts, top matches |
+| `GET` | `/api/v1/academicians/matches` | `ACADEMICIAN` | Postings ranked by expertise; `limit` accepts 1–20 |
+| `GET` | `/api/v1/academicians/matches/:opportunityId` | `ACADEMICIAN` | The breakdown behind one posting's score |
+
+The paths mirror `/students` segment for segment — `/profile`,
+`/profile/skills/:skillId`, `/profile/completion`, `/matches`,
+`/matches/:opportunityId`. Step 7's brief sketched `POST /academician/profile` but
+also said not to use its paths if the repository had an established convention, so
+the repository won: the mount is plural like `/students`, `/skills` and
+`/applications`, and a developer who has wired the student pages already knows the
+shape of these.
+
+There is deliberately **no** `GET /academicians/opportunities` and no
+`GET /academicians/profile/skills`. Browsing already works through the existing
+`/opportunities` routes, and the profile response already carries the populated
+skill list — a second endpoint returning the same array is one more thing to keep
+in step.
+
+### Profile completion is nine weighted sections
+
+`ACADEMICIAN_COMPLETION_SECTIONS` in `constants/academicians.js` is an array of nine
+`{ key, label, weight, action, filled(profile) }` objects whose weights sum to 100.
+The model's `computeCompletionBreakdown()` runs each `filled` predicate and returns
+the score with the per-section detail, so the panel can name the highest-weight
+thing still missing and link to the form that fixes it.
+
+| Section | Weight | Section | Weight |
+| --- | --- | --- | --- |
+| Summary (headline + bio) | 15 | Education | 10 |
+| Position | 15 | Experience | 10 |
+| Expertise areas | 15 | Industry experience | 5 |
+| Catalogue skills | 15 | Achievements | 5 |
+| Research interests | 10 | | |
+
+Industry experience carries its own weight because it is the section that makes a
+professor credible to a company, and it is satisfied by any `experiences` entry
+whose `experienceType` is one of the industry kinds — the profile does not ask the
+same question twice.
+
+### Opportunities are the same opportunities
+
+There is no `AcademicianOpportunity` model. `Opportunity` gained one field,
+`audience`, defaulting to `student`, so every posting written before Step 7 is a
+student posting without a migration. The `type` enum grew to twelve values — the
+four student types, plus `research_collaboration`, `consultancy`,
+`guest_lecture`, `mentorship`, `faculty_internship`, `industrial_training`, `fdp`
+and `workshop` — and `TYPES_BY_AUDIENCE` is the single table saying which type
+belongs to which audience.
+
+**Two `pre('validate')` hooks make that pairing a guarantee rather than a
+convention.** The enum alone would happily save `{ audience: 'student', type: 'fdp' }`
+— a Faculty Development Programme on a student's browse page — or
+`{ audience: 'academician', type: 'job' }`, an entry-level job advertised to
+professors. `coherentAudience` refuses both. `coherentEligibility` refuses branch
+and graduation-year windows on an academician posting, because those describe an
+undergraduate and would either be ignored (the posting lying about who may attend)
+or enforced (excluding every professor who graduated before the window); `notes`
+stays available for real conditions like a minimum teaching requirement.
+
+**Nothing role-gates the browse routes.** `GET /opportunities` and
+`GET /opportunities/:id` are shared, and the controller scopes each response with
+`audienceForRole(req.user.role)` — so an academician hitting the existing list gets
+faculty-facing postings and a student cannot see them, with the audience coming
+from the token rather than the query string. A `?audience=` parameter would have let
+a student browse faculty programmes and apply to one.
+
+### Applications reuse the `Application` model
+
+An academician applying to a collaboration or registering for a programme creates a
+normal `Application`. The applicant is stored on **`studentId`** — the field is not
+renamed, because renaming a field that every existing index, service and query
+already uses would risk the student flow to gain a nicer word — and
+`applicantRole` says which kind of user it is. `toJSON()` carries it so a shared
+card can print "Academician" without a second lookup.
+
+Everything the student flow already guarantees therefore applies unchanged: the
+unique compound index on `{ studentId, opportunityId }` still stops duplicates, the
+status graph in `constants/applications.js` is still the only authority on
+transitions, and `matchScoreAtApplication` is still frozen at apply time. One rule
+was added: `loadApplicablePosting` refuses an application whose posting's
+`audience` does not match `audienceForRole(applicantRole)`, so holding an id is not
+enough to apply across audiences.
+
+### Collaboration is structured, not a chat
+
+There is no messaging system, and none is faked. A collaboration is an
+`Opportunity` whose type is one of `mentorship`, `research_collaboration`,
+`consultancy` or `guest_lecture`; a programme is one of `faculty_internship`,
+`industrial_training`, `fdp` or `workshop`. Expressing interest is an
+`Application`, reviewed by the same employer pipeline that reviews students, which
+means contact happens through a real reviewed record rather than an inbox nobody
+would answer during a demo. `isCollaborationType` and `isProgrammeType` are the one
+definition of which is which, so the dashboard's two cards sum over the per-type
+counts and a new type updates both automatically.
+
+### Expertise matching reuses the student engine
+
+`calculateMatch()` is **unmodified**. `AcademicianProfile.toMatchContext()` presents
+a professor in the shape the engine already accepts — catalogue skills as skills,
+research interests filling the career-interest slot — so the same weights
+(skills 70, career interest 15, eligibility 10, profile completeness 5) and the
+same `matchScore` come back. There is no second algorithm to keep in agreement with
+the first, and student matching is untouched.
+
+`summariseExpertiseMatch()` translates one match into the vocabulary Phase 7 asked
+for, reading only the breakdown the engine already returned:
+
+```text
+Strong expertise match: Python, Machine Learning, Computer Vision
+Additional relevant expertise: Deep Learning
+```
+
+`strongMatch` is the required skills she has, `additionalExpertise` the preferred
+ones, `gaps` what is missing. The score itself is arithmetic, computed server-side
+and displayed verbatim — the client never derives one.
+
+### The academician flow in the browser
+
+Six pages, all reusing the existing layout, cards, tables and loading, error and
+empty states. No student or industry page was redesigned.
+
+| Path | What it does |
+| --- | --- |
+| `/academician` | Completion, open collaborations and programmes, active applications, top matches with their reasons |
+| `/academician/profile` | The whole profile and every write, through `useAcademicianProfile.js` |
+| `/academician/opportunities` | Browse, filtered by the eight academician types |
+| `/academician/opportunities/:id` | Full detail, the expertise breakdown, and the only place applying happens |
+| `/academician/matches` | The ranked list, each row carrying why it ranked there |
+| `/academician/applications` | Applications and programme registrations, with their status timeline |
+
+The three record sections are generated from
+`constants/academicianSections.js` — one config object per section describing its
+fields, validation, card shape and request payload — the same pattern the student
+portfolio uses, so adding a field means editing data rather than three components.
+
+`constants/opportunities.js` on the client keeps `OPPORTUNITY_TYPE_ORDER` as the
+four student types on purpose, so no student filter ever offers "Faculty
+Development Programme"; `ALL_TYPE_ORDER` exists for the employer's own-postings
+filter, which spans both audiences, and `typeOrderFor(audience)` is what each page
+asks for.
+
+---
+
 ## Demo data
 
 `npm run seed` loads the catalogue. `npm run seed:demo` loads a **story**: 22
-students, 3 employers, 12 postings, 31 applications and 16 portfolio records, all
-reachable through the UI with one password.
+students, 3 employers, one academician, 18 postings, 34 applications and 16
+portfolio records, all reachable through the UI with one password.
 
 ```bash
 cd server
@@ -1436,7 +1665,7 @@ business silently resetting credentials.
 | `INDUSTRY` | `hiring@northwind.demo` | Postings with ranked applicants at every pipeline stage |
 | `INDUSTRY` | `talent@lumen.demo` | A second employer, so demand is not one company's wishlist |
 | `INDUSTRY` | `careers@sentinel.demo` | A third, including a draft and a closed posting |
-| `ACADEMICIAN` | `academician@skillbridge.demo` | The placeholder dashboard, with role enforcement working |
+| `ACADEMICIAN` | `academician@skillbridge.demo` | Dr. Ananya Sharma — a complete faculty profile, three applications, and the Phase 7 match explanation |
 | `STUDENT` | `aarav.menon@student.demo` | Persona A — ready: high readiness, verified skills, selected |
 | `STUDENT` | `rohan.iyer@student.demo` | Persona B — solid: good, not exceptional, mid-pipeline |
 | `STUDENT` | `divya.ramesh@student.demo` | Persona C — developing: real gaps against real postings |
@@ -1466,6 +1695,25 @@ Postings are created **active**, applications are seeded, statuses are walked, a
 only then do the draft and closed postings take their final state. That is the
 order reality uses, and `createApplication` rightly refuses a closed or expired
 posting.
+
+**The academician demo is the Phase 7 example, made real.** Dr. Ananya Sharma holds
+Python, Machine Learning and Computer Vision as her strongest catalogue skills plus
+Deep Learning, and the Industry–Academia Computer Vision Research Collaboration
+lists the first three as required and Deep Learning as preferred — so her dashboard
+prints "Strong expertise match: Python, Machine Learning, Computer Vision" above
+"Additional relevant expertise: Deep Learning" because the engine scored it, not
+because the seed wrote the sentence. Her profile is complete: two degrees, three
+experiences including a Bosch industry stint that earns the industry-experience
+section, four achievements, and five research interests, which is what makes the
+completion panel show 100% on first login. Her three applications sit at
+`shortlisted`, `under_review` and `applied` so the status timeline has something to
+render.
+
+The six academician postings span both halves of the split — a research
+collaboration, a consultancy, a guest lecture series and a mentorship programme on
+the collaboration side; a Faculty Development Programme in Generative AI and an
+Industrial Training Programme in cloud infrastructure on the programme side — so the
+dashboard's two counts are different numbers rather than one number twice.
 
 ### Portfolios are on a minority of the cohort, on purpose
 
@@ -1577,7 +1825,7 @@ the flows in the PRD and TRD are used instead.
 ~~Opportunities~~ → ~~Assessment engine~~ → ~~Career readiness & gap analysis~~ →
 ~~Learning recommendations~~ → ~~Matching~~ → ~~Applications~~ →
 ~~Candidate ranking~~ → ~~Institution analytics~~ → ~~Demo data~~ →
-~~Portfolio & documents~~ → Notifications.
+~~Portfolio & documents~~ → ~~Academician portal~~ → Notifications.
 
 Each step ships one complete, working flow before the next begins.
 
@@ -1587,11 +1835,13 @@ the reasoning behind each score, apply, watch the status history as an employer
 moves them along, and assemble a portfolio with the documents behind it. An
 employer can post, see ranked applicants with the match score frozen at apply
 time, and move them through the pipeline. An institution can see cohort readiness,
-the skill gaps against live hiring, and the placement pipeline.
+the skill gaps against live hiring, and the placement pipeline. An academician can
+build a faculty profile, browse collaborations and faculty programmes, see which
+ones their expertise fits and why, and apply.
 
-The `ACADEMICIAN` and `ADMIN` dashboards still render placeholders. They exist to
-prove routing and role enforcement work, and they are honest about it — each one
-lists what it will contain rather than showing an empty chart.
+Only the `ADMIN` dashboard still renders a placeholder. It exists to prove routing
+and role enforcement work, and it is honest about it — it lists what it will
+contain rather than showing an empty chart.
 
 Notifications remain out of scope: they need a delivery channel decision rather
 than more code.
