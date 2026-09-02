@@ -79,14 +79,19 @@ const redact = (uri) => uri.replace(/\/\/([^:]+):([^@]+)@/, '//$1:****@');
 /* ------------------------------------------------------------------------- */
 
 /**
- * The shortest legal route from `applied` to a target status.
+ * The shortest legal route from `from` (default `applied`) to a target status.
  *
  * Breadth-first over the real transition map, so this cannot invent an edge the
  * product does not have. Returns null when the target is unreachable, which is a
  * validation error rather than something to work around.
+ *
+ * `from` exists so a re-run can resume from wherever an application actually sits
+ * instead of replaying the walk from `applied`. Called with one argument it answers
+ * the validation question — "could the product ever reach this status?" — which is
+ * always asked from `applied`.
  */
-export const pathToStatus = (target) => {
-  const start = APPLICATION_STATUSES.APPLIED;
+export const pathToStatus = (target, from = APPLICATION_STATUSES.APPLIED) => {
+  const start = from;
   if (target === start) return [];
 
   const queue = [[start, []]];
@@ -738,8 +743,10 @@ const upsertOpportunity = async (posting, ownerId, skillIds, stats) => {
  *
  * Both halves go through the service, so a duplicate is a conflict we swallow (the
  * script is re-runnable) and an illegal move is an error we do not (the data is
- * wrong). Already-reached statuses are skipped, which is what makes a second run
- * cheap rather than a no-op stream of errors.
+ * wrong). The pipeline walk is planned from the application's CURRENT status, so a
+ * re-run plans nothing for an application that already sits at its target — which is
+ * what makes the script genuinely idempotent instead of merely idempotent on a fresh
+ * database.
  *
  * Step 7: handles both student and academician applications. An entry with `student:`
  * is a student application; an entry with `academician:` is an academician application.
@@ -753,7 +760,7 @@ const upsertOpportunity = async (posting, ownerId, skillIds, stats) => {
  * both — which is also what the unique index enforces.
  */
 const seedApplications = async ({ studentsByEmail, academicianByEmail, postingsByTitle, ownerByPosting }) => {
-  const stats = { created: 0, existing: 0, moved: 0, skipped: 0 };
+  const stats = { created: 0, existing: 0, moved: 0, skipped: 0, settled: 0, unreachable: 0 };
 
   for (const entry of DEMO_APPLICATIONS) {
     const isAcademician = 'academician' in entry;
@@ -797,13 +804,39 @@ const seedApplications = async ({ studentsByEmail, academicianByEmail, postingsB
       continue;
     }
 
-    const route = pathToStatus(entry.status);
     const ownerId = ownerByPosting.get(entry.posting).toString();
 
-    for (const step of route) {
-      /* Re-runs land here with the walk already done. */
-      if (application.status === step) continue;
+    /*
+     * Resume from where the application actually is, not from `applied`.
+     *
+     * This is the re-run fix. The walk used to be planned from `applied` every time
+     * and each step skipped only if it happened to equal the current status, so a
+     * second run on a finished application planned `applied -> shortlisted -> selected`,
+     * found `shortlisted !== selected`, and asked the service to move a `selected`
+     * application backwards. The service is right to refuse that, so the seeder had to
+     * stop asking: an application already at its target yields an empty route and is
+     * left untouched.
+     */
+    const route = pathToStatus(entry.status, application.status);
 
+    /*
+     * Null means no legal route from here — the application sits in a terminal state
+     * the demo data did not ask for, usually because someone drove it there in the UI.
+     * Leave it exactly as it is. Forcing it would need the guard switched off, and the
+     * guard is the product behaviour being demonstrated.
+     */
+    if (route === null) {
+      stats.unreachable += 1;
+      console.warn(
+        `      ! ${applicantEmail} on "${entry.posting}" is "${application.status}"; ` +
+          `the demo asks for "${entry.status}", which is not reachable from there. Left as is.`,
+      );
+      continue;
+    }
+
+    if (route.length === 0) stats.settled += 1;
+
+    for (const step of route) {
       const isLast = step === entry.status;
       await updateApplicationStatus({
         applicationId: application._id.toString(),
@@ -1040,7 +1073,13 @@ const run = async () => {
     console.log(
       `      Applications  created ${applicationStats.created}   already there ` +
         `${applicationStats.existing}   status moves ${applicationStats.moved}` +
-        (applicationStats.skipped > 0 ? `   skipped ${applicationStats.skipped}` : ''),
+        (applicationStats.settled > 0
+          ? `   already at target ${applicationStats.settled}`
+          : '') +
+        (applicationStats.skipped > 0 ? `   skipped ${applicationStats.skipped}` : '') +
+        (applicationStats.unreachable > 0
+          ? `   left as is ${applicationStats.unreachable}`
+          : ''),
     );
 
     const closed = await applyFinalStates(postingsByTitle);
