@@ -71,6 +71,38 @@ import { createApplication, updateApplicationStatus } from '../src/services/appl
 
 const DAY = 24 * 60 * 60 * 1000;
 
+/**
+ * How long a posting whose fixture deadline is already past stays open while the
+ * seeder is applying to it. Short, so nothing in the demo looks freshly urgent,
+ * but far enough out that a slow seed cannot cross it mid-run.
+ */
+export const SEEDING_WINDOW_DAYS = 1;
+
+/**
+ * The deadline a posting is PUBLISHED with.
+ *
+ * `createApplication` refuses an expired posting, and it should. But the demo
+ * deliberately contains a posting whose deadline has already passed and which still
+ * has a finished application pipeline on it. The only honest way to reach that state
+ * is the order reality uses: publish with a live deadline, receive the applications,
+ * then let the deadline lapse. So a fixture deadline in the past is held open here
+ * and written for real by {@link finalDeadlineFor} once the applications exist.
+ *
+ * Deadlines already in the future are published exactly as the fixture states them.
+ */
+export const publishDeadlineFor = (posting) =>
+  new Date(Date.now() + Math.max(posting.deadlineInDays, SEEDING_WINDOW_DAYS) * DAY);
+
+/**
+ * The deadline a posting ENDS UP with, or `null` when publishing already got it right.
+ *
+ * Only the held-open past deadlines need correcting, and they are recomputed relative
+ * to the current run so the demo dataset reads the same on every seed instead of
+ * drifting further into the past.
+ */
+export const finalDeadlineFor = (posting) =>
+  posting.deadlineInDays < 0 ? new Date(Date.now() + posting.deadlineInDays * DAY) : null;
+
 /** Hides credentials before anything reaches a terminal or a log file. */
 const redact = (uri) => uri.replace(/\/\/([^:]+):([^@]+)@/, '//$1:****@');
 
@@ -687,9 +719,13 @@ const upsertAcademicianProfile = async (academician, user, skillIds, stats) => {
 };
 
 /**
- * Writes one posting, always as active with the stated deadline.
+ * Writes one posting, always as active and always open to applications.
  *
  * `finalStatus` is applied later, after applications exist — see applyFinalStates.
+ * So is a deadline the fixture puts in the past: publishing one immediately would
+ * make the posting EXPIRED, and `createApplication` refuses an expired posting, so
+ * the three demo applications on "Winter Internship Programme" (deadlineInDays: -6)
+ * could never be seeded. See {@link publishDeadlineFor}.
  *
  * `audience` IS WRITTEN EXPLICITLY, AND LEAVING IT OUT WAS A REAL BUG. The schema
  * defaults it to `student`, so the six Step 7 postings that say
@@ -719,8 +755,8 @@ const upsertOpportunity = async (posting, ownerId, skillIds, stats) => {
     eligibility: posting.eligibility ?? {},
     durationMonths: posting.durationMonths ?? null,
     openings: posting.openings ?? 1,
-    deadline: new Date(Date.now() + posting.deadlineInDays * DAY),
-    /* Active for now, whatever it ends up as. */
+    deadline: publishDeadlineFor(posting),
+    /* Active and open for now, whatever they end up as. */
     status: OPPORTUNITY_STATUSES.ACTIVE,
   };
 
@@ -854,23 +890,33 @@ const seedApplications = async ({ studentsByEmail, academicianByEmail, postingsB
 };
 
 /**
- * Closes and un-publishes the postings that were only active so they could be applied to.
+ * Closes and expires the postings that were only left open so they could be applied to.
  *
  * Last, deliberately. `createApplication` refuses a closed or expired posting — as it
- * should — so the only honest way to end up with a finished pipeline on a closed role
- * is the order reality uses: publish, receive, close.
+ * should — so the only honest way to end up with a finished pipeline on a closed or
+ * lapsed role is the order reality uses: publish, receive, close.
+ *
+ * BOTH halves of that end state are written here: `finalStatus` where the fixture names
+ * one, and the real past deadline for any posting {@link publishDeadlineFor} held open.
+ * Writing only the status was a real bug — a posting could be asked for applications
+ * while its own deadline had already passed.
  */
 const applyFinalStates = async (postingsByTitle) => {
   let changed = 0;
 
   for (const posting of DEMO_OPPORTUNITIES) {
-    const target = posting.finalStatus;
-    if (!target) continue;
-
     const doc = postingsByTitle.get(posting.title);
-    if (!doc || doc.status === target) continue;
+    if (!doc) continue;
 
-    doc.status = target;
+    const status = posting.finalStatus;
+    const deadline = finalDeadlineFor(posting);
+    const statusPending = Boolean(status) && doc.status !== status;
+
+    if (!statusPending && deadline === null) continue;
+
+    if (statusPending) doc.status = status;
+    if (deadline !== null) doc.deadline = deadline;
+
     await doc.save();
     changed += 1;
   }
@@ -1084,7 +1130,7 @@ const run = async () => {
 
     const closed = await applyFinalStates(postingsByTitle);
     if (closed > 0) {
-      console.log(`      ${closed} posting(s) moved to their final draft/closed state`);
+      console.log(`      ${closed} posting(s) moved to their final status/deadline`);
     }
 
     // --- credentials ------------------------------------------------------
