@@ -10,6 +10,7 @@
 import asyncHandler from '../utils/asyncHandler.js';
 import { sendSuccess } from '../utils/apiResponse.js';
 import { getInstitutionAnalytics } from '../services/analytics.service.js';
+import { getInstitutionIntelligence } from '../services/institutionIntelligence.service.js';
 
 /** GET /api/v1/analytics/institution — the institution dashboard, in one request. */
 export const getInstitutionOverview = asyncHandler(async (req, res) => {
@@ -21,4 +22,20 @@ export const getInstitutionOverview = asyncHandler(async (req, res) => {
   });
 });
 
-export default { getInstitutionOverview };
+/**
+ * GET /api/v1/analytics/institution/intelligence
+ *
+ * The longer report: demand against supply with a priority and a sentence per
+ * skill, what the learning programmes have measurably changed, and what became of
+ * the applications. One request, six sections, same token-derived cohort as above.
+ */
+export const getInstitutionIntelligenceReport = asyncHandler(async (req, res) => {
+  const intelligence = await getInstitutionIntelligence(req.user.id);
+
+  return sendSuccess(res, {
+    message: 'Institution intelligence retrieved successfully.',
+    data: intelligence,
+  });
+});
+
+export default { getInstitutionOverview, getInstitutionIntelligenceReport };

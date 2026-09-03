@@ -22,4 +22,19 @@ export const fetchInstitutionAnalytics = async () => {
   return response.data.data;
 };
 
-export default { fetchInstitutionAnalytics };
+/**
+ * GET /analytics/institution/intelligence — the longer report.
+ *
+ * SEPARATE FROM THE CALL ABOVE, NOT A FLAG ON IT. The dashboard and the intelligence
+ * page are two screens with two payload sizes, and the dashboard should not pay for
+ * the demand ranking, the learning before/after and the outcome funnel it never
+ * renders. Same account scoping, same lack of any id in the path.
+ *
+ * @returns {Promise<object>} `{institution, summary, skillDemand, skillGaps, learningImpact, outcomes, actions, coverage}`
+ */
+export const fetchInstitutionIntelligence = async () => {
+  const response = await axiosInstance.get('/analytics/institution/intelligence');
+  return response.data.data;
+};
+
+export default { fetchInstitutionAnalytics, fetchInstitutionIntelligence };

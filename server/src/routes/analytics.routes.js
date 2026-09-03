@@ -19,12 +19,25 @@ import { Router } from 'express';
 import ROLES from '../constants/roles.js';
 import { authenticate } from '../middleware/authMiddleware.js';
 import { allowRoles } from '../middleware/roleMiddleware.js';
-import { getInstitutionOverview } from '../controllers/analytics.controller.js';
+import {
+  getInstitutionIntelligenceReport,
+  getInstitutionOverview,
+} from '../controllers/analytics.controller.js';
 
 const analyticsRoutes = Router();
 
 analyticsRoutes.use(authenticate);
 
 analyticsRoutes.get('/institution', allowRoles(ROLES.INSTITUTION), getInstitutionOverview);
+
+/* A static path, so its position relative to `/institution` does not matter — but
+   it is a separate route rather than a `?detail=` flag on the one above, because
+   the dashboard and the intelligence page are two screens with two payload sizes
+   and one of them should not pay for the other. */
+analyticsRoutes.get(
+  '/institution/intelligence',
+  allowRoles(ROLES.INSTITUTION),
+  getInstitutionIntelligenceReport,
+);
 
 export default analyticsRoutes;

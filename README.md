@@ -64,7 +64,7 @@ skillbridge-ai/
 │   │   │   ├── assessment.api.js     # generate, take, submit, history
 │   │   │   ├── matching.api.js       # readiness, recommendations, matches
 │   │   │   ├── application.api.js    # apply, my applications, applicants
-│   │   │   ├── analytics.api.js      # the institution overview, one call
+│   │   │   ├── analytics.api.js      # the institution overview and its intelligence report
 │   │   │   ├── academician.api.js    # the academician profile, dashboard, matches
 │   │   │   ├── portfolio.api.js      # portfolio records + document upload
 │   │   │   └── learning.api.js       # programmes, enrolments, recommendations
@@ -87,7 +87,10 @@ skillbridge-ai/
 │   │   │   │   ├── ApplyCard.jsx             # the apply form + its refusals
 │   │   │   │   └── ApplicationStatusTimeline.jsx  # the real status history
 │   │   │   ├── industry/CandidateCard.jsx    # one ranked applicant
-│   │   │   ├── institution/AnalyticsCharts.jsx  # CSS bars, no chart library
+│   │   │   ├── institution/
+│   │   │   │   ├── AnalyticsCharts.jsx        # CSS bars, no chart library
+│   │   │   │   └── IntelligencePanels.jsx     # demand-vs-supply table, impact,
+│   │   │   │                                  # outcome funnel, action list
 │   │   │   ├── academician/
 │   │   │   │   ├── AcademicianDetailsForm.jsx    # position, expertise, interests
 │   │   │   │   └── AcademicianRecordSection.jsx  # education / experience /
@@ -140,7 +143,8 @@ skillbridge-ai/
 │   │   │   ├── useMyLearning.js       # My Learning: the rows and the summary
 │   │   │   ├── useLearningRecommendations.js # the gap-driven strip
 │   │   │   ├── useMyLearningPrograms.js  # the publisher's list and row actions
-│   │   │   └── useLearningProgramEditor.js # publish/edit form state + submission
+│   │   │   ├── useLearningProgramEditor.js # publish/edit form state + submission
+│   │   │   └── useInstitutionIntelligence.js # the one intelligence report
 │   │   ├── pages/
 │   │   │   ├── Login.jsx  Register.jsx
 │   │   │   ├── SystemStatus.jsx      # the Step 1 status card, now at /status
@@ -171,12 +175,14 @@ skillbridge-ai/
 │   │   │   │   ├── OpportunityApplicants.jsx # ranked applicants + status moves
 │   │   │   │   ├── MyLearningPrograms.jsx    # the publisher's programme list
 │   │   │   │   └── LearningProgramFormPage.jsx # publish and edit a programme
-│   │   │   └── academician/
-│   │   │       ├── AcademicianProfile.jsx    # the academician's own profile
-│   │   │       ├── AcademicianOpportunities.jsx # collaborations and programmes
-│   │   │       ├── AcademicianOpportunityDetails.jsx # detail + expertise + apply
-│   │   │       ├── AcademicianMatches.jsx    # ranked by expertise, with reasons
-│   │   │       └── AcademicianApplications.jsx # applications and registrations
+│   │   │   ├── academician/
+│   │   │   │   ├── AcademicianProfile.jsx    # the academician's own profile
+│   │   │   │   ├── AcademicianOpportunities.jsx # collaborations and programmes
+│   │   │   │   ├── AcademicianOpportunityDetails.jsx # detail + expertise + apply
+│   │   │   │   ├── AcademicianMatches.jsx    # ranked by expertise, with reasons
+│   │   │   │   └── AcademicianApplications.jsx # applications and registrations
+│   │   │   └── institution/
+│   │   │       └── InstitutionIntelligence.jsx # demand vs supply, impact, outcomes
 │   │   ├── routes/
 │   │   │   ├── AppRouter.jsx    # all route definitions
 │   │   │   └── guards.jsx       # ProtectedRoute, RoleRoute, PublicOnlyRoute
@@ -257,7 +263,7 @@ skillbridge-ai/
 │   │   │   ├── assessment.routes.js  # /assessments
 │   │   │   ├── application.routes.js # /applications
 │   │   │   ├── academician.routes.js # /academicians/profile and below
-│   │   │   ├── analytics.routes.js   # /analytics/institution
+│   │   │   ├── analytics.routes.js   # /analytics/institution, and its intelligence report
 │   │   │   └── learning.routes.js    # /learning and /industry/learning-programs
 │   │   ├── services/            # business logic
 │   │   │   ├── auth.service.js
@@ -270,6 +276,8 @@ skillbridge-ai/
 │   │   │   ├── matching.service.js      # the match score, pure and testable
 │   │   │   ├── application.service.js   # apply, and the legal status moves
 │   │   │   ├── analytics.service.js     # the institution overview; read-only
+│   │   │   ├── institutionIntelligence.service.js # demand vs supply, learning
+│   │   │   │                                      # impact, outcomes; read-only
 │   │   │   ├── academician.service.js   # the profile, its records, its matches
 │   │   │   ├── portfolio.service.js     # every query filters on the caller
 │   │   │   ├── document.service.js      # reads the raw stream, no upload library
@@ -1277,11 +1285,12 @@ and an optional note, which is what the student's timeline renders.
 
 ## Institution analytics
 
-One endpoint, one page, one request.
+Two endpoints, two pages, one request each.
 
 | Method | Route | Auth | Purpose |
 | --- | --- | --- | --- |
 | `GET` | `/api/v1/analytics/institution` | `INSTITUTION` | Cohort readiness, skill gaps against live hiring, and the placement pipeline |
+| `GET` | `/api/v1/analytics/institution/intelligence` | `INSTITUTION` | Industry skill demand against student supply, learning impact, internship and placement outcomes, and the actions that follow |
 
 The controller reads `req.user` and **nothing** from the query, body or params —
 an institution cannot ask about a cohort that is not its own. Students are matched
@@ -1297,6 +1306,42 @@ Students who have not been assessed are reported as `notAssessed` and left out o
 every average. Their readiness is unknown, not zero, and the dashboard prints an
 em dash rather than `0%` — a college acting on a fake zero would be acting on
 nothing.
+
+### Institution intelligence
+
+`/institution/intelligence` is the second page, and it answers a different
+question: not what state the cohort is in, but what should change about it. One
+request returns six sections — `summary`, `skillDemand`, `skillGaps`,
+`learningImpact`, `outcomes` and `actions` — plus a `coverage` block of flags, so a
+section with nothing behind it says "not enough data yet" in its own words while
+the rest of the page renders.
+
+The headline is a table of `Skill | Industry demand | Student supply | Avg
+proficiency | Gap | Priority`, ordered most urgent first. Every band and every
+priority is a stated threshold rather than a tuned one: a skill is in high demand
+at 25% of live postings and medium at 10%, supply is high at 60% of the cohort and
+medium at 30%, and holders count as materially short when they average 15 points
+below what postings ask for. `CRITICAL` is then high demand with a coverage or
+proficiency problem, `HIGH` is medium demand with the same problem, and a
+well-covered skill in high demand is `MEDIUM` however loudly employers ask for it.
+Each row carries the sentence the label came from — the demo cohort's top row reads
+"Docker is required by 40% of live student postings (4 of them), asking for level
+64. 15% of students list it, averaging 53 (Basic)" — because a priority an
+institution cannot check is a priority it cannot act on. There is no score, no model
+and no external service anywhere in it.
+
+**Learning impact is measured, not assumed.** Enrolments and completions are
+reported as participation; the only thing counted as improvement is a skill score
+from one submitted assessment against a later one for the same student, averaged
+per student rather than across two different groups. A priority skill nobody has
+re-sat reads `Insufficient reassessment data` and shows no number, because `+0`
+there says the teaching failed when it means nobody has been measured since.
+
+**Outcomes reuse the application.** Its six statuses already are the outcome
+vocabulary, so Step 9 adds no `outcomeStatus`, no second state machine and no
+schema change; the internship-versus-job split comes from the posting's own
+`type`. The service is read-only from end to end — it declares no model, writes
+nothing, and every aggregate is bounded by this cohort's student ids.
 
 ---
 

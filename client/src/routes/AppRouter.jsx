@@ -53,6 +53,7 @@ import AcademicianOpportunityDetails from '../pages/academician/AcademicianOppor
 import AcademicianApplications from '../pages/academician/AcademicianApplications.jsx';
 import AcademicianMatches from '../pages/academician/AcademicianMatches.jsx';
 import InstitutionDashboard from '../pages/dashboards/InstitutionDashboard.jsx';
+import InstitutionIntelligence from '../pages/institution/InstitutionIntelligence.jsx';
 import AdminDashboard from '../pages/dashboards/AdminDashboard.jsx';
 
 /**
@@ -200,6 +201,12 @@ export default function AppRouter() {
 
       <Route element={<RoleRoute allowedRoles={[ROLES.INSTITUTION]} />}>
         <Route path="/institution" element={<InstitutionDashboard />} />
+        {/* Intelligence is its own route rather than a section of the dashboard for
+            the reason the student's matches route gives: the dashboard answers "what
+            is the state of my cohort" and this answers "what should we change about
+            it". They are different questions with different payload sizes, and the
+            second one should be linkable on its own. */}
+        <Route path="/institution/intelligence" element={<InstitutionIntelligence />} />
       </Route>
 
       <Route element={<RoleRoute allowedRoles={[ROLES.ADMIN]} />}>

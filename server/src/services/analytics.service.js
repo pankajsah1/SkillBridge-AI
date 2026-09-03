@@ -64,16 +64,25 @@ const TOP_STRENGTHS = 5;
 const exactNameMatch = (value) =>
   new RegExp(`^${String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i');
 
-/** The cohort filter. See the header for why it is an $or. */
-const cohortFilter = (institution) => ({
+/**
+ * The cohort filter. See the header for why it is an $or.
+ *
+ * EXPORTED for `institutionIntelligence.service.js`, along with `percentage`,
+ * `mean`, `skillSupply` and `skillDemand` below. Step 9 answers a longer question
+ * over the *same* cohort and the *same* demand, and a second definition of "this
+ * institution's students" is the one bug that would make two screens disagree
+ * about how many students a college has. Nothing about the five is changed —
+ * `export` is the whole diff.
+ */
+export const cohortFilter = (institution) => ({
   $or: [{ institutionId: institution._id }, { institutionName: exactNameMatch(institution.name) }],
 });
 
 /** Integer percentage, or null when there is nothing to divide by. */
-const percentage = (part, whole) => (whole > 0 ? Math.round((part / whole) * 100) : null);
+export const percentage = (part, whole) => (whole > 0 ? Math.round((part / whole) * 100) : null);
 
 /** Mean of a numeric list, rounded, or null for an empty list. */
-const mean = (values) =>
+export const mean = (values) =>
   values.length > 0
     ? Math.round(values.reduce((sum, value) => sum + value, 0) / values.length)
     : null;
@@ -136,7 +145,7 @@ const branchBreakdown = (profiles) => {
  * Keyed by skill id as a string throughout — the ids are ObjectIds, and two
  * ObjectIds for the same skill are not `===` each other.
  */
-const skillSupply = (profiles) => {
+export const skillSupply = (profiles) => {
   const supply = new Map();
 
   for (const profile of profiles) {
@@ -168,7 +177,7 @@ const skillSupply = (profiles) => {
  * is a different question and belongs in its own report rather than silently
  * changing what this one means.
  */
-const skillDemand = async () => {
+export const skillDemand = async () => {
   const rows = await Opportunity.aggregate([
     {
       $match: {
@@ -376,4 +385,4 @@ export const getInstitutionAnalytics = async (institutionUserId) => {
   };
 };
 
-export default { getInstitutionAnalytics };
+export default { getInstitutionAnalytics, cohortFilter, skillDemand, skillSupply };

@@ -1688,6 +1688,58 @@ export const DEMO_ENROLLMENTS = [
   { academician: 'academician@skillbridge.demo', program: 'AWS Cloud Fundamentals', status: 'in_progress', progress: 50 },
 ];
 
+/**
+ * Assessment history — the only evidence of improvement the platform accepts.
+ *
+ * WHY THIS FIXTURE EXISTS AT ALL. Step 8's rule is that finishing a programme moves
+ * nothing; only a reassessment can. That rule left the demo with a hole: three
+ * students complete a programme and the institution page could only ever report
+ * "Insufficient reassessment data", because the seed wrote skill levels straight
+ * onto the profiles and created no attempts. These rows close the loop honestly —
+ * LEARNING → REASSESSMENT → IMPROVEMENT — by giving the students who finished
+ * something a paper before and a paper after.
+ *
+ * WHAT IS STATED HERE AND WHAT IS DERIVED. Only the dates and which skills moved.
+ * The questions come from the real bank through the real selector, the answers are
+ * chosen by the real option weights and the scores are computed by the real scorer,
+ * so nothing in this file can invent a number the assessment engine would not
+ * produce. `attempts` is days-ago, oldest first; a single entry means one paper,
+ * which is evidence of a level but not of a trend, and the intelligence page is
+ * required to exclude it from any before/after claim.
+ *
+ * `gained` is points-per-skill between the two papers. It is a target, not a
+ * promise: with one question per skill the achievable scores are 0, 33, 67 and 100,
+ * so the seeder aims at the nearest reachable option and the real scorer decides
+ * what actually lands. Skills not named in `gained` are answered at the level the
+ * profile already claims on both papers, which is what makes a +0 row possible —
+ * and a page where every trained skill improved and nothing else moved would be the
+ * less believable demo.
+ *
+ * NO PROFILE IS TOUCHED BY ANY OF THIS. `applySkillScoresToProfile` is never
+ * called, so every skill level stays exactly what the profile fixtures said, and
+ * the assessment history is a second, independent record that the institution page
+ * reads for movement.
+ */
+export const DEMO_ASSESSMENTS = [
+  /* ---- The three who finished a programme, reassessed afterwards ----------- */
+  /* The golden path. Docker is the cohort's most acute gap — 40% of live student
+     postings require it against 15% supply — and Vikram is the student who
+     completed the DevOps programme that teaches it. Two papers, four months apart,
+     with the second one after the completion. */
+  { student: 'vikram.naidu@student.demo', attempts: [118, 9], gained: { docker: 34, 'ci-cd': 34 } },
+  { student: 'sneha.kulkarni@student.demo', attempts: [102, 16], gained: { sql: 34, 'data-modeling': 34 } },
+  { student: 'divya.ramesh@student.demo', attempts: [95, 12], gained: { git: 34 } },
+
+  /* ---- One paper each: a measured level, and deliberately not a trend ------ */
+  /* These four are why the page can say "7 of 20 students have sat an assessment"
+     and still refuse to report improvement for six of them. Assessed is not the
+     same claim as reassessed, and the difference has to be visible. */
+  { student: 'aarav.menon@student.demo', attempts: [24] },
+  { student: 'ishita.bose@student.demo', attempts: [31] },
+  { student: 'rohan.iyer@student.demo', attempts: [38] },
+  { student: 'meghna.das@student.demo', attempts: [45] },
+];
+
 export default {
   DEMO_PASSWORD,
   DEMO_INSTITUTION,
@@ -1700,4 +1752,5 @@ export default {
   DEMO_APPLICATIONS,
   DEMO_LEARNING_PROGRAMS,
   DEMO_ENROLLMENTS,
+  DEMO_ASSESSMENTS,
 };

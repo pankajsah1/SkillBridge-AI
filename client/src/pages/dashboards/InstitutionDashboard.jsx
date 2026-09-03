@@ -25,6 +25,7 @@
  */
 
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 
 import { fetchInstitutionAnalytics } from '../../api/analytics.api.js';
 import DashboardLayout from '../../components/layout/DashboardLayout.jsx';
@@ -41,8 +42,12 @@ import { Spinner } from '../../components/ui/Spinner.jsx';
 import { APPLICATION_STATUSES, statusLabel } from '../../constants/applications.js';
 import { errorDetailsForBanner } from '../../utils/apiErrors.js';
 
-/** What this dashboard still does not do. The first three items shipped in Phase 8. */
-const UPCOMING = ['Industry collaboration management', 'Curriculum alignment insights'];
+/**
+ * What this dashboard still does not do. Three items shipped in Phase 8, and
+ * "Curriculum alignment insights" shipped in Phase 9 as the intelligence page — so it
+ * is removed rather than left on a list of things that already exist.
+ */
+const UPCOMING = ['Industry collaboration management'];
 
 /** A number and what it means. `value` may be null, which prints as a dash, not a 0. */
 function StatTile({ label, value, suffix = '', hint }) {
@@ -303,16 +308,33 @@ export default function InstitutionDashboard() {
               )}
             </Card>
 
-            {/* NO LINK OUT OF THIS PAGE, ON PURPOSE. Browsing opportunities is a
-                STUDENT-only route, and an institution has no page of its own to go
-                to yet — so this closes with the reading of the numbers rather than
-                a button that would land on "not found". */}
-            <Card title="What to do with this">
+            {/* THE ONE LINK OUT OF THIS PAGE. Phase 9 gives the institution a second
+                surface, so the page no longer has to close on the reading of its own
+                numbers: the gap table here says which skills are short, and the
+                intelligence page says what is being done about them and whether it
+                has worked. */}
+            <Card
+              title="What to do with this"
+              action={
+                <Link
+                  to="/institution/intelligence"
+                  className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary-600 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-primary-700"
+                >
+                  Open intelligence
+                </Link>
+              }
+            >
               <p className="text-sm text-slate-600">
                 The gap table is the shortest route to a curriculum decision: the skills at the top
                 are the ones employers are hiring for and this cohort cannot supply. The readiness
                 distribution is the shortest route to a student one — the students in the lowest two
                 bands are the ones an assessment has already identified as needing help.
+              </p>
+
+              <p className="mt-2 text-sm text-slate-600">
+                Institution intelligence takes those gaps further: it ranks them by priority,
+                reports what the learning programmes have measurably changed, and turns the
+                placement pipeline above into internship and job outcomes.
               </p>
             </Card>
           </>

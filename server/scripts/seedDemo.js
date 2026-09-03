@@ -52,6 +52,12 @@ import { env, validateEnv } from '../src/config/env.js';
 import { toSlug, SKILL_SOURCES } from '../src/constants/skills.js';
 import { APPLICATION_STATUSES, canTransition } from '../src/constants/applications.js';
 import {
+  ASSESSMENT_STATUSES,
+  MAX_QUESTION_COUNT,
+  MIN_QUESTION_COUNT,
+  QUESTION_SOURCES,
+} from '../src/constants/assessments.js';
+import {
   CREATABLE_LEARNING_PROGRAM_STATUSES,
   DEFAULT_ENROLLMENT_STATUS,
   DEFAULT_LEARNING_PROGRAM_STATUS,
@@ -74,9 +80,11 @@ import { DEFAULT_AUDIENCE, OPPORTUNITY_STATUSES } from '../src/constants/opportu
 import ROLES from '../src/constants/roles.js';
 import { SKILL_SEED } from '../src/data/skills.seed.js';
 import { CAREER_ROLE_SEED } from '../src/data/careerRoles.seed.js';
+import { BANK_SKILL_SLUGS } from '../src/data/questionBank.seed.js';
 import {
   DEMO_ACADEMICIAN,
   DEMO_APPLICATIONS,
+  DEMO_ASSESSMENTS,
   DEMO_EMPLOYERS,
   DEMO_ENROLLMENTS,
   DEMO_INSTITUTION,
@@ -88,6 +96,7 @@ import {
   OTHER_INSTITUTION_NAME,
 } from '../src/data/demo.seed.js';
 import Application from '../src/models/Application.js';
+import Assessment from '../src/models/Assessment.js';
 import CareerRole from '../src/models/CareerRole.js';
 import LearningEnrollment from '../src/models/LearningEnrollment.js';
 import LearningProgram from '../src/models/LearningProgram.js';
@@ -102,6 +111,11 @@ import {
   updateLearningProgram,
 } from '../src/services/learning.service.js';
 import { enroll, updateEnrollment } from '../src/services/learningEnrollment.service.js';
+import {
+  createRandom,
+  scoreAnswers,
+  selectBankQuestions,
+} from '../src/services/assessment.service.js';
 
 const DAY = 24 * 60 * 60 * 1000;
 
@@ -738,6 +752,139 @@ export const validateDemoData = () => {
     warnings.push(
       'A persona E student is enrolled in a program. That persona exists to show the ' +
         'empty states, so it should not have learning history.',
+    );
+  }
+
+  // --- assessment history (Step 9) -----------------------------------------
+  /* Every rule here protects one claim the institution intelligence page makes. A
+     skill that is not in the question bank cannot be examined; a skill the student
+     does not list cannot be a reassessment of theirs; two papers on the same day
+     are not a before and an after. And a skill no posting asks for is checked only
+     as a warning, because it seeds perfectly well — it just renders nowhere, since
+     the demand table is what the improvement rows are drawn against. */
+  const demandedSlugs = new Set(
+    DEMO_OPPORTUNITIES.flatMap((posting) => (posting.required ?? []).map(([slug]) => slug)),
+  );
+  const assessedEmails = new Set();
+  let reassessedCount = 0;
+
+  DEMO_ASSESSMENTS.forEach((entry) => {
+    const student = DEMO_STUDENTS.find((candidate) => candidate.email === entry.student);
+
+    if (!student) {
+      errors.push(`An assessment is seeded for "${entry.student}", who is not a demo student.`);
+      return;
+    }
+
+    if (assessedEmails.has(entry.student)) {
+      errors.push(`${entry.student} has two assessment fixtures; they belong in one entry.`);
+    }
+    assessedEmails.add(entry.student);
+
+    const attempts = entry.attempts ?? [];
+
+    if (attempts.length === 0) {
+      errors.push(`${student.name}'s assessment fixture has no attempts.`);
+      return;
+    }
+
+    if (attempts.some((days) => !Number.isInteger(days) || days < 1)) {
+      errors.push(`${student.name} has an attempt that is not a whole number of days ago.`);
+    }
+
+    attempts.forEach((days, index) => {
+      if (index > 0 && days >= attempts[index - 1]) {
+        errors.push(
+          `${student.name}'s attempts are not oldest-first: ${attempts[index - 1]} days ago is ` +
+            `followed by ${days}. The first paper has to be the older one.`,
+        );
+      }
+    });
+
+    const askable = (student.skills ?? []).filter(([slug]) => BANK_SKILL_SLUGS.includes(slug));
+
+    if (askable.length === 0) {
+      errors.push(
+        `${student.name} has no skills the question bank can examine, so an assessment for ` +
+          'them would have no questions.',
+      );
+    }
+
+    const gained = Object.entries(entry.gained ?? {});
+
+    if (gained.length > 0 && attempts.length < 2) {
+      errors.push(
+        `${student.name} is stated to have gained points but has only one paper. Improvement ` +
+          'needs two.',
+      );
+    }
+
+    if (attempts.length > 1) {
+      reassessedCount += 1;
+
+      if (gained.length === 0) {
+        warnings.push(
+          `${student.name} sat two papers with nothing stated as gained, so both will score ` +
+            'the same and the row will read +0.',
+        );
+      }
+    }
+
+    gained.forEach(([slug, points]) => {
+      if (!BANK_SKILL_SLUGS.includes(slug)) {
+        errors.push(
+          `${student.name} is stated to have improved at "${slug}", which the question bank ` +
+            'cannot examine.',
+        );
+      }
+
+      if (!(student.skills ?? []).some(([owned]) => owned === slug)) {
+        errors.push(
+          `${student.name} is stated to have improved at "${slug}", which is not on their ` +
+            'profile. A reassessment can only cover skills the student claims.',
+        );
+      }
+
+      if (!Number.isInteger(points) || points < 1 || points > 100) {
+        errors.push(`${student.name}'s gain at "${slug}" is ${points}; it has to be 1-100.`);
+      }
+
+      if (!demandedSlugs.has(slug)) {
+        warnings.push(
+          `${student.name}'s improvement at "${slug}" will not appear on the institution page: ` +
+            'no demo posting asks for it, and improvement is reported against demand.',
+        );
+      }
+    });
+  });
+
+  /* The one row the golden demo cannot do without. Without a second paper there is
+     no before, and the learning loop can only ever be shown half closed. */
+  if (reassessedCount === 0) {
+    errors.push(
+      'No student has sat two assessments, so no improvement can be measured and the ' +
+        'institution page can only report insufficient reassessment data.',
+    );
+  }
+
+  const completedLearners = new Set(completions.map((entry) => entry.student));
+  const reassessedLearners = new Set(
+    DEMO_ASSESSMENTS.filter((entry) => (entry.attempts ?? []).length > 1).map(
+      (entry) => entry.student,
+    ),
+  );
+
+  if (![...completedLearners].some((email) => reassessedLearners.has(email))) {
+    warnings.push(
+      'Nobody who completed a learning program has been reassessed, so the LEARNING → ' +
+        'REASSESSMENT → IMPROVEMENT path has no single student to follow through it.',
+    );
+  }
+
+  if (DEMO_STUDENTS.every((student) => assessedEmails.has(student.email))) {
+    warnings.push(
+      'Every student has sat an assessment, so the institution page can never show how much ' +
+        'of a cohort is still unmeasured.',
     );
   }
 
@@ -1417,6 +1564,237 @@ export const seedEnrollments = async ({ studentsByEmail, academicianByEmail, pro
   return stats;
 };
 
+/** Minutes between starting a seeded paper and submitting it. */
+const ASSESSMENT_MINUTES = 18;
+
+/**
+ * Fisher-Yates over the exported generator, so option order is scrambled the way a
+ * real attempt scrambles it and is still identical on every run.
+ *
+ * Exported, with the two below it, because the seeded scores are a claim the Step 9
+ * page rests on and the claim has to be checkable without a database.
+ */
+export const shuffleWith = (items, random) => {
+  const copy = [...items];
+
+  for (let index = copy.length - 1; index > 0; index -= 1) {
+    const swap = Math.floor(random() * (index + 1));
+    [copy[index], copy[swap]] = [copy[swap], copy[index]];
+  }
+
+  return copy;
+};
+
+/**
+ * A stable seed per student per attempt.
+ *
+ * Derived from the email rather than the user id, because the id changes when the
+ * database is dropped and the questions a demo student has already answered should
+ * not. Plain character sum shifted by the attempt index — this decides which of a
+ * skill's two or three bank questions gets asked, and nothing else.
+ */
+export const assessmentSeed = (email, index) =>
+  [...email].reduce((total, character) => total + character.charCodeAt(0), 0) * 31 + index * 7919;
+
+/**
+ * The option a student "picks": the one whose weight is closest to the level being
+ * aimed at, and the lower one when two are equally close.
+ *
+ * This is what keeps the seeded history inside the arithmetic the scorer can
+ * actually produce. Weights are 100/67/33/0, and with one question per skill those
+ * four values are the only scores a skill can have — so a fixture asking for 58
+ * gets 67, and asking for 24 gets 33. The fixture states a direction; the engine
+ * decides the number.
+ */
+export const nearestOptionIndex = (options, target) => {
+  let best = 0;
+
+  options.forEach((option, index) => {
+    const distance = Math.abs(option.score - target);
+    const bestDistance = Math.abs(options[best].score - target);
+
+    if (distance < bestDistance || (distance === bestDistance && option.score < options[best].score)) {
+      best = index;
+    }
+  });
+
+  return best;
+};
+
+/**
+ * One paper, built and scored exactly as a live attempt would be.
+ *
+ * PURE, AND EXPORTED FOR THAT REASON. Given a student's skills and which of them are
+ * stated to have moved, this returns the questions, the per-skill scores and the
+ * overall — through `selectBankQuestions` and `scoreAnswers` and nothing of its own.
+ * Every number the institution intelligence page reports as improvement comes out of
+ * here, so it has to be runnable and checkable without a database in front of it.
+ *
+ * `latest` is what makes it a before or an after: the most recent paper aims at the
+ * level the profile claims today, and every earlier one aims at that level minus the
+ * points the fixture says have been gained since.
+ */
+export const buildAssessmentPaper = ({ email, skills, skillPool, gained, latest, index }) => {
+  const levels = new Map(skills.map(([slug, level]) => [slug, level]));
+  const count = Math.min(Math.max(skillPool.length, MIN_QUESTION_COUNT), MAX_QUESTION_COUNT);
+  const seed = assessmentSeed(email, index);
+  const random = createRandom(seed);
+
+  const questions = selectBankQuestions({ skillPool, count, seed })
+    .filter((question) => question.skill)
+    .map((question) => {
+      const level = levels.get(question.skill.slug) ?? 0;
+      const target = latest ? level : level - (gained?.[question.skill.slug] ?? 0);
+      const options = shuffleWith(question.options, random);
+
+      return {
+        bankId: question.bankId ?? '',
+        questionText: question.questionText,
+        skillId: question.skill.id,
+        skillName: question.skill.name,
+        skillSlug: question.skill.slug,
+        category: question.skill.category,
+        difficulty: question.difficulty,
+        options,
+        selectedOptionIndex: nearestOptionIndex(options, target),
+      };
+    });
+
+  return { questions, ...scoreAnswers({ questions }) };
+};
+
+/**
+ * Seeds the assessment history every before/after figure is read from.
+ *
+ * BUILT BY THE REAL ENGINE, NOT WRITTEN DOWN. The questions come from the real bank
+ * through `selectBankQuestions`, the options are shuffled by the exported generator
+ * and the scores are computed by `scoreAnswers` — the same three functions a student
+ * pressing Submit goes through. So the history cannot contain a score the live
+ * system would not produce, and an improvement shown on the institution page is
+ * arithmetic a judge can redo from the stored answers.
+ *
+ * `applySkillScoresToProfile` IS DELIBERATELY NOT CALLED. That is the one line that
+ * would let these papers write skill levels, and the whole point of Step 8's rule is
+ * that the profile and the assessment history are separate records. Every level in
+ * the database after this phase is still exactly what `upsertProfile` wrote.
+ *
+ * IDEMPOTENT ON A COUNT, BECAUSE THERE IS NO STABLE KEY. Attempt dates are computed
+ * from `Date.now()`, so they differ every run and cannot be matched on. What is
+ * stable is how many submitted papers the fixture asks for: if the student already
+ * has exactly that many, this has run before and there is nothing to do. If they
+ * have some other number, a real attempt has happened through the UI — the demo does
+ * not own that history, so it says so and leaves it alone rather than adding a
+ * duplicate paper or deleting someone's work.
+ */
+export const seedAssessments = async ({ studentsByEmail }) => {
+  const stats = { created: 0, existing: 0, skipped: 0, leftAsIs: 0 };
+
+  const fixtures = DEMO_ASSESSMENTS.map((entry) => ({
+    entry,
+    student: DEMO_STUDENTS.find((candidate) => candidate.email === entry.student),
+  })).filter((row) => row.student);
+
+  /* Two lookups for the whole phase: the skills any of these students could be asked
+     about, and the roles their papers are nominally for. */
+  const slugs = [
+    ...new Set(
+      fixtures.flatMap(({ student }) =>
+        (student.skills ?? [])
+          .map(([slug]) => slug)
+          .filter((slug) => BANK_SKILL_SLUGS.includes(slug)),
+      ),
+    ),
+  ];
+
+  const titles = [...new Set(fixtures.flatMap(({ student }) => student.targets ?? []))];
+
+  const [skillDocs, roleDocs] = await Promise.all([
+    Skill.find({ slug: { $in: slugs } }),
+    CareerRole.find({ title: { $in: titles } }).select('title'),
+  ]);
+
+  const skillBySlug = new Map(skillDocs.map((doc) => [doc.slug, doc]));
+  const roleByTitle = new Map(roleDocs.map((doc) => [doc.title, doc]));
+
+  for (const { entry, student } of fixtures) {
+    const user = studentsByEmail.get(entry.student);
+
+    if (!user) {
+      stats.skipped += 1;
+      continue;
+    }
+
+    const submitted = await Assessment.countDocuments({
+      studentId: user._id,
+      status: ASSESSMENT_STATUSES.SUBMITTED,
+    });
+
+    if (submitted === entry.attempts.length) {
+      stats.existing += 1;
+      continue;
+    }
+
+    if (submitted > 0) {
+      stats.leftAsIs += 1;
+      console.warn(
+        `      ! ${entry.student} has ${submitted} submitted assessment(s); the demo asks for ` +
+          `${entry.attempts.length}. That history was not seeded, so it is left alone.`,
+      );
+      continue;
+    }
+
+    /* The paper covers what the student claims, in profile order, one question each
+       where the bank allows it. A pool this size is what makes the per-skill scores
+       land on clean weights instead of averages of two questions. */
+    const skillPool = (student.skills ?? [])
+      .map(([slug]) => skillBySlug.get(slug))
+      .filter(Boolean);
+
+    if (skillPool.length === 0) {
+      stats.skipped += 1;
+      continue;
+    }
+
+    const role = roleByTitle.get((student.targets ?? [])[0]);
+
+    for (const [index, daysAgo] of entry.attempts.entries()) {
+      const { questions, skillScores, overallScore, answeredCount } = buildAssessmentPaper({
+        email: entry.student,
+        skills: student.skills ?? [],
+        skillPool,
+        gained: entry.gained,
+        latest: index === entry.attempts.length - 1,
+        index,
+      });
+
+      if (questions.length === 0) {
+        stats.skipped += 1;
+        continue;
+      }
+
+      const submittedAt = new Date(Date.now() - daysAgo * DAY);
+
+      await Assessment.create({
+        studentId: user._id,
+        careerRoleId: role?._id ?? null,
+        careerRoleTitle: role?.title ?? '',
+        status: ASSESSMENT_STATUSES.SUBMITTED,
+        questionSource: QUESTION_SOURCES.BANK,
+        questions,
+        skillScores,
+        overallScore,
+        answeredCount,
+        startedAt: new Date(submittedAt.getTime() - ASSESSMENT_MINUTES * 60 * 1000),
+        submittedAt,
+      });
+
+      stats.created += 1;
+    }
+  }
+
+  return stats;
+};
+
 /* ------------------------------------------------------------------------- */
 /* Entry point                                                               */
 /* ------------------------------------------------------------------------- */
@@ -1442,19 +1820,24 @@ const run = async () => {
   }
 
   const cohortSize = DEMO_STUDENTS.filter((s) => !s.otherInstitution).length;
-  const assessed = DEMO_STUDENTS.filter(
+  const withReadiness = DEMO_STUDENTS.filter(
     (s) => !s.otherInstitution && typeof s.readiness === 'number',
   ).length;
 
   console.log('PASS  Demo data validated');
   console.log(
     `      ${DEMO_STUDENTS.length} students (${cohortSize} at ${DEMO_INSTITUTION.name}, ` +
-      `${assessed} assessed), ${DEMO_OPPORTUNITIES.length} opportunities, ` +
+      `${withReadiness} with a readiness score), ${DEMO_OPPORTUNITIES.length} opportunities, ` +
       `${DEMO_APPLICATIONS.length} applications`,
   );
   console.log(
     `      ${DEMO_LEARNING_PROGRAMS.length} learning programs teaching the skills those ` +
       `postings ask for, ${DEMO_ENROLLMENTS.length} enrollments`,
+  );
+  console.log(
+    `      ${DEMO_ASSESSMENTS.length} students with assessment history, ` +
+      `${DEMO_ASSESSMENTS.filter((entry) => entry.attempts.length > 1).length} of them ` +
+      'reassessed after finishing a program',
   );
   console.log('      personas A-E all present, and the readiness spread is not a highlight reel\n');
 
@@ -1681,6 +2064,25 @@ const run = async () => {
     console.log(
       `      ${completions} completed program(s), and not one skill score moved because of ` +
         'it — only a reassessment can do that',
+    );
+
+    // --- assessment history (Step 9) ---------------------------------------
+    /* Last, because it is the evidence the rest is judged by: the papers have to sit
+       after the completions they are supposed to have followed. */
+    const assessmentStats = await seedAssessments({ studentsByEmail });
+
+    console.log(
+      `\n      Assessments       created ${assessmentStats.created}   already there ` +
+        `${assessmentStats.existing}` +
+        (assessmentStats.leftAsIs > 0 ? `   left as is ${assessmentStats.leftAsIs}` : '') +
+        (assessmentStats.skipped > 0 ? `   skipped ${assessmentStats.skipped}` : ''),
+    );
+
+    const reassessed = DEMO_ASSESSMENTS.filter((entry) => entry.attempts.length > 1);
+
+    console.log(
+      `      ${reassessed.length} student(s) sat a second paper, so improvement is measured ` +
+        `for them and refused for the other ${DEMO_ASSESSMENTS.length - reassessed.length}`,
     );
 
     // --- credentials ------------------------------------------------------
