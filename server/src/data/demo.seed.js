@@ -1,5 +1,5 @@
 /**
- * Demo data — the cohort, the employers and the postings the demo runs on.
+ * Demo data — the cohort, the employers, the postings and the learning the demo runs on.
  *
  * DATA ONLY. No database access, no mongoose import, nothing async. `scripts/seedDemo.js`
  * is the mechanism; this file is the content, kept separate for the same reason
@@ -37,6 +37,12 @@
  * SKILL TUPLES ARE `[slug, level, verified]`. `verified` true means the level is
  * recorded as coming from an assessment; false means the student typed it. The slugs
  * must exist in skills.seed.js — seedDemo.js proves that offline before it connects.
+ *
+ * THE LEARNING PROGRAMMES AT THE BOTTOM CLOSE THE LOOP, AND THEY DO NOT SHORTEN IT.
+ * They teach the skills the postings ask for and the cohort lacks, three students have
+ * finished one, and not one skill level below changes because of it. Completion is
+ * evidence that learning happened; the assessment engine is still the only thing that
+ * says how good anybody is.
  */
 
 /** The one shared password, printed at the end of a seed run. Demo accounts only. */
@@ -1446,6 +1452,242 @@ export const DEMO_APPLICATIONS = [
   },
 ];
 
+/**
+ * The learning programmes (Step 8). Eight of them, published by the same three
+ * employers, because the role that lists a posting is the role that lists a course.
+ *
+ * THE SKILLS THEY TEACH ARE THE SKILLS THE POSTINGS ABOVE ASK FOR AND THE COHORT
+ * DOES NOT HAVE. That is not decoration — it is the entire mechanism. Recommendations
+ * are a set intersection between a student's skill gaps and `skills` below, so a
+ * programme teaching things nobody is short of would be listed and never recommended,
+ * and one teaching a skill no posting wants would be recommended and never useful.
+ * Docker, AWS, CI/CD, advanced SQL and production ML are exactly where the engineered
+ * gap sits (see the header), so that is what these programmes cover.
+ *
+ * DATES ARE MONTH OFFSETS, LIKE THE PORTFOLIO RECORDS. `startsInMonths` and
+ * `endsInMonths` are resolved against the run, so the demo does not age into a
+ * catalogue of programmes that all finished last spring. `endsInMonths: null` means
+ * evergreen, which is what a self-paced course honestly is — and it is also the only
+ * end date that can never expire between two seed runs.
+ *
+ * ONE OF THEM IS A DRAFT, ON PURPOSE. A draft is invisible to browse, to search and
+ * to recommendations, and unenrollable — a rule nobody can see working is a rule
+ * nobody believes. It is also what puts a number on the publisher dashboard's Drafts
+ * tile.
+ *
+ * `provider` IS NOT THE PUBLISHER. Northwind lists an NPTEL course, which is what an
+ * industry partner curating third-party material actually looks like, and the detail
+ * page renders "Listed by Northwind Analytics" only because the two differ.
+ */
+export const DEMO_LEARNING_PROGRAMS = [
+  {
+    employer: 'sentinel',
+    title: 'AWS Cloud Fundamentals',
+    provider: 'Sentinel Cloud Academy',
+    type: 'certification',
+    level: 'beginner',
+    deliveryMode: 'self_paced',
+    skills: ['aws', 'linux'],
+    durationHours: 40,
+    startsInMonths: null,
+    endsInMonths: null,
+    instructor: '',
+    prerequisites: ['Comfort with a terminal', 'No prior cloud experience needed'],
+    externalUrl: 'https://learn.sentinel.example.com/aws-cloud-fundamentals',
+    description:
+      'The cloud vocabulary every backend and DevOps interview assumes you already have: regions and availability zones, IAM, EC2, S3, VPC basics, and what actually happens when you point a domain at a load balancer. Ends with the associate-level practice exam, taken under time.',
+  },
+  {
+    employer: 'lumen',
+    title: 'Full Stack React & Node Development',
+    provider: 'Lumen Web Systems Academy',
+    type: 'course',
+    level: 'intermediate',
+    deliveryMode: 'online',
+    skills: ['react', 'node-js', 'express-js', 'mongodb', 'rest-api-design'],
+    durationHours: 120,
+    startsInMonths: 1,
+    endsInMonths: 4,
+    instructor: 'Meera Raghavan',
+    prerequisites: ['Working JavaScript', 'Have built at least one page by hand'],
+    externalUrl: 'https://learn.lumen.example.com/full-stack-react-node',
+    description:
+      'Twelve weeks building one application properly rather than six tutorials badly. React with real state, an Express API behind it, MongoDB underneath, and a fortnightly code review with an engineer from the product team. You finish with something deployed that you can defend in an interview.',
+  },
+  {
+    employer: 'northwind',
+    title: 'Advanced SQL & Database Engineering',
+    provider: 'Northwind Data Academy',
+    type: 'course',
+    level: 'advanced',
+    deliveryMode: 'hybrid',
+    skills: ['sql', 'data-modeling'],
+    durationHours: 60,
+    startsInMonths: 1,
+    endsInMonths: 3,
+    instructor: 'Dr. Suresh Iyer',
+    prerequisites: ['Confident with joins and grouping', 'Have written queries against a real dataset'],
+    externalUrl: 'https://learn.northwind.example.com/advanced-sql',
+    description:
+      'Window functions, CTEs, indexing strategy and reading a query plan without guessing. The second half is modelling: normalisation you can argue for, the denormalisation you will actually ship, and why the schema decision made in week one is the one nobody can undo later.',
+  },
+  {
+    employer: 'northwind',
+    title: 'Python for Data Analytics',
+    provider: 'NPTEL',
+    type: 'course',
+    level: 'beginner',
+    deliveryMode: 'online',
+    skills: ['python', 'pandas', 'data-analysis', 'data-visualization'],
+    durationHours: 80,
+    startsInMonths: 2,
+    endsInMonths: 5,
+    instructor: 'Prof. Kavita Menon',
+    prerequisites: ['School-level mathematics'],
+    externalUrl: 'https://nptel.example.com/python-for-data-analytics',
+    description:
+      'Pandas from the first week, on messy data rather than a teaching set: missing values, inconsistent categories, dates stored four different ways. Ends on visualisation and the harder half of it, which is deciding what a chart is allowed to claim.',
+  },
+  {
+    employer: 'lumen',
+    title: 'Industry Project & Agile Development Workshop',
+    provider: 'Lumen Web Systems',
+    type: 'workshop',
+    level: 'intermediate',
+    deliveryMode: 'offline',
+    skills: ['git', 'teamwork', 'communication', 'problem-solving'],
+    durationHours: 24,
+    startsInMonths: 1,
+    endsInMonths: 2,
+    instructor: 'Arun Prakash',
+    prerequisites: ['Any language', 'Bring a laptop'],
+    externalUrl: 'https://learn.lumen.example.com/industry-project-workshop',
+    description:
+      'Three days on a team you did not choose, working a real backlog: branching that survives four people, pull requests reviewed by someone who did not write the code, a standup that stays under ten minutes, and a demo on the last afternoon to an audience that asks awkward questions.',
+  },
+  {
+    employer: 'northwind',
+    title: 'AI/ML Industry Readiness Program',
+    provider: 'Northwind Analytics',
+    type: 'training',
+    level: 'advanced',
+    deliveryMode: 'hybrid',
+    skills: ['machine-learning', 'deep-learning', 'statistics', 'tensorflow'],
+    durationHours: 150,
+    startsInMonths: 2,
+    endsInMonths: 6,
+    instructor: 'Vandana Krishnan',
+    prerequisites: ['A model trained end to end at least once', 'Statistics to hypothesis testing'],
+    externalUrl: 'https://learn.northwind.example.com/ai-ml-industry-readiness',
+    description:
+      'The part of machine learning that a course project skips: leakage, honest validation splits, error analysis on the cases you got wrong, and what changes when the model has to answer in 40 milliseconds. Assessed on a written error analysis rather than a leaderboard score.',
+  },
+  {
+    employer: 'sentinel',
+    title: 'DevOps Mentorship: Linux to CI/CD',
+    provider: 'Sentinel Cloud Academy',
+    type: 'mentorship',
+    level: 'intermediate',
+    deliveryMode: 'online',
+    skills: ['docker', 'ci-cd', 'kubernetes'],
+    /* Open-ended, so `durationHours: null` is exercised by something the demo shows.
+       A mentorship runs until it stops. */
+    durationHours: null,
+    startsInMonths: 1,
+    endsInMonths: null,
+    instructor: 'Farhan Qureshi',
+    prerequisites: ['Comfortable on the Linux command line', 'Have deployed something, anywhere'],
+    externalUrl: 'https://learn.sentinel.example.com/devops-mentorship',
+    description:
+      'Fortnightly one-to-one with a platform engineer, working on your own repository rather than an exercise: containerise it, get a pipeline green, then talk honestly about what happens when it fails at 2am. Pairs with the AWS certification above.',
+  },
+  /**
+   * The draft. Nobody can see it and nobody can enrol in it — which is the point.
+   *
+   * `status: 'draft'` is the only status the fixture may state other than published:
+   * archiving is a decision taken after learners exist, so it belongs in the UI rather
+   * than in a seed that would have to enrol people into it first.
+   */
+  {
+    employer: 'sentinel',
+    title: 'System Design for Production Services',
+    provider: 'Sentinel Cloud Academy',
+    type: 'course',
+    level: 'advanced',
+    deliveryMode: 'online',
+    status: 'draft',
+    skills: ['system-design', 'kubernetes', 'aws'],
+    durationHours: 90,
+    startsInMonths: 3,
+    endsInMonths: 6,
+    instructor: 'Farhan Qureshi',
+    prerequisites: ['Two years of writing services, or the AWS certification above'],
+    externalUrl: 'https://learn.sentinel.example.com/system-design',
+    description:
+      'Still being written. Queues, idempotency, backpressure and the failure modes that only appear under load — the syllabus is drafted but the case studies are not cleared for release yet.',
+  },
+];
+
+/**
+ * Who is learning what (Step 8). 18 enrolments across the seven published programmes.
+ *
+ * `student` (or `academician`) plus `program` is the natural key, and it is also the
+ * unique index the product enforces, so this list cannot express a duplicate
+ * enrolment even by accident.
+ *
+ * THE END STATE IS STATED, THE ROUTE IS NOT. seedDemo.js enrols and then patches
+ * through the real service, so every `startedAt`, every `completedAt` and every
+ * refusal to move backwards is the product's own doing. A re-run reads where the row
+ * actually is and asks for nothing it already has.
+ *
+ * THREE STUDENTS HAVE FINISHED SOMETHING, AND NONE OF THEM GOT A POINT FOR IT. That is
+ * the whole argument of Step 8: completing a programme is evidence that learning
+ * happened, not a claim about ability. Vikram finishes the DevOps mentorship with
+ * Docker still recorded at 58 and CI/CD at 48, exactly where his profile above says
+ * they are, and the portal responds by asking him to reassess. If a future edit makes
+ * the numbers move on completion, this fixture is where the lie would have to be
+ * written — and it must not be.
+ *
+ * PERSONAS D AND E ARE HANDLED DIFFERENTLY ON PURPOSE. Two unassessed students are
+ * learning, which is honest and keeps readiness at null while progress moves; the two
+ * empty accounts have no enrolments at all, so the My Learning empty state is real.
+ */
+export const DEMO_ENROLLMENTS = [
+  /* ---- Persona A — already strong, closing the last gap ------------------- */
+  { student: 'aarav.menon@student.demo', program: 'AWS Cloud Fundamentals', status: 'in_progress', progress: 70 },
+  { student: 'ishita.bose@student.demo', program: 'AI/ML Industry Readiness Program', status: 'in_progress', progress: 40 },
+
+  /* ---- Persona B — the realistic middle ---------------------------------- */
+  { student: 'rohan.iyer@student.demo', program: 'Full Stack React & Node Development', status: 'in_progress', progress: 35 },
+  { student: 'sneha.kulkarni@student.demo', program: 'Advanced SQL & Database Engineering', status: 'completed' },
+  /* The completion the reassessment prompt was built for: Docker 58 and CI/CD 48 on
+     his profile before, and the same two numbers after. */
+  { student: 'vikram.naidu@student.demo', program: 'DevOps Mentorship: Linux to CI/CD', status: 'completed' },
+  { student: 'ananya.pillai@student.demo', program: 'Python for Data Analytics', status: 'in_progress', progress: 55 },
+  { student: 'kabir.shah@student.demo', program: 'AWS Cloud Fundamentals', status: 'enrolled' },
+
+  /* ---- Persona C — the students the product is for ------------------------ */
+  { student: 'divya.ramesh@student.demo', program: 'Industry Project & Agile Development Workshop', status: 'completed' },
+  { student: 'arjun.deshpande@student.demo', program: 'Industry Project & Agile Development Workshop', status: 'in_progress', progress: 50 },
+  { student: 'fatima.sheikh@student.demo', program: 'Advanced SQL & Database Engineering', status: 'in_progress', progress: 30 },
+  /* Two programmes for one student, so My Learning has tabs worth switching. */
+  { student: 'fatima.sheikh@student.demo', program: 'Python for Data Analytics', status: 'enrolled' },
+  { student: 'nikhil.verma@student.demo', program: 'Python for Data Analytics', status: 'enrolled' },
+  { student: 'meghna.das@student.demo', program: 'Full Stack React & Node Development', status: 'in_progress', progress: 60 },
+  { student: 'saurabh.jain@student.demo', program: 'DevOps Mentorship: Linux to CI/CD', status: 'in_progress', progress: 20 },
+
+  /* ---- Persona D — learning without an assessment behind it --------------- */
+  { student: 'priya.ranganathan@student.demo', program: 'Full Stack React & Node Development', status: 'enrolled' },
+  { student: 'lakshmi.narayan@student.demo', program: 'DevOps Mentorship: Linux to CI/CD', status: 'enrolled' },
+
+  /* ---- The other college, and the academician ---------------------------- */
+  /* Learning is open to the whole platform, unlike the institution cohort. */
+  { student: 'gautam.reddy@student.demo', program: 'AWS Cloud Fundamentals', status: 'in_progress', progress: 65 },
+  /* An academician is a learner too — LEARNER_ROLES says so, and this is the row that
+     proves the `learnerRole` snapshot is not decoration. */
+  { academician: 'academician@skillbridge.demo', program: 'AWS Cloud Fundamentals', status: 'in_progress', progress: 50 },
+];
+
 export default {
   DEMO_PASSWORD,
   DEMO_INSTITUTION,
@@ -1456,4 +1698,6 @@ export default {
   DEMO_PORTFOLIOS,
   DEMO_OPPORTUNITIES,
   DEMO_APPLICATIONS,
+  DEMO_LEARNING_PROGRAMS,
+  DEMO_ENROLLMENTS,
 };

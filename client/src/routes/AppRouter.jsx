@@ -37,10 +37,15 @@ import AssessmentResult from '../pages/student/AssessmentResult.jsx';
 import CareerReadiness from '../pages/student/CareerReadiness.jsx';
 import MatchedOpportunities from '../pages/student/MatchedOpportunities.jsx';
 import MyApplications from '../pages/student/MyApplications.jsx';
+import LearningHub from '../pages/student/LearningHub.jsx';
+import LearningProgramDetails from '../pages/student/LearningProgramDetails.jsx';
+import MyLearning from '../pages/student/MyLearning.jsx';
 import IndustryDashboard from '../pages/dashboards/IndustryDashboard.jsx';
 import MyOpportunities from '../pages/industry/MyOpportunities.jsx';
 import OpportunityApplicants from '../pages/industry/OpportunityApplicants.jsx';
 import OpportunityFormPage from '../pages/industry/OpportunityFormPage.jsx';
+import MyLearningPrograms from '../pages/industry/MyLearningPrograms.jsx';
+import LearningProgramFormPage from '../pages/industry/LearningProgramFormPage.jsx';
 import AcademicianDashboard from '../pages/dashboards/AcademicianDashboard.jsx';
 import AcademicianProfile from '../pages/academician/AcademicianProfile.jsx';
 import AcademicianOpportunities from '../pages/academician/AcademicianOpportunities.jsx';
@@ -128,6 +133,19 @@ export default function AppRouter() {
             and on the opportunity page, and a third place to render it would be a
             third place for it to drift. */}
         <Route path="/student/applications" element={<MyApplications />} />
+
+        {/* Learning is discovery, one programme, and the student's own enrolments —
+            the same three-surface shape as opportunities, and student-scoped for the
+            same reason: an industry user following a "Back to the learning hub" link
+            would land on /unauthorized. Publishers reach their own programmes through
+            /industry/learning-programs instead.
+
+            My Learning is its own route rather than a tab on the hub because "what
+            should I learn?" and "what am I learning?" are different questions, and the
+            second one is where progress is reported. */}
+        <Route path="/student/learning" element={<LearningHub />} />
+        <Route path="/student/learning/:programId" element={<LearningProgramDetails />} />
+        <Route path="/student/my-learning" element={<MyLearning />} />
       </Route>
 
       <Route element={<RoleRoute allowedRoles={[ROLES.INDUSTRY]} />}>
@@ -145,6 +163,20 @@ export default function AppRouter() {
         <Route
           path="/industry/opportunities/:id/applications"
           element={<OpportunityApplicants />}
+        />
+
+        {/* Learning programmes are published by ROLES.INDUSTRY — the role that already
+            posts opportunities — so their management lives in this group and nowhere
+            else. No new role and no new permission system: the server's
+            allowRoles(ROLES.INDUSTRY) on POST/PATCH/DELETE is the same gate.
+
+            `new` before `:programId/edit` for the reason the opportunity routes give:
+            it can never be read as an id. */}
+        <Route path="/industry/learning-programs" element={<MyLearningPrograms />} />
+        <Route path="/industry/learning-programs/new" element={<LearningProgramFormPage />} />
+        <Route
+          path="/industry/learning-programs/:programId/edit"
+          element={<LearningProgramFormPage />}
         />
       </Route>
 

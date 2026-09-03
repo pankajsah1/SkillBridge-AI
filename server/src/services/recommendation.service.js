@@ -46,8 +46,16 @@ const WEIGHT_DEMAND = 15;
 /**
  * Bands for the priority label. Three, because a student can act on "do this
  * first / do this next / do this eventually" and cannot act on a 0-100 score.
+ *
+ * EXPORTED so `learningRecommendation.service.js` can label a *programme* on the
+ * same scale a skill is labelled on. A programme's score is the highest score
+ * among the gaps it covers, and if that service invented its own thresholds a
+ * course could read "medium priority" on the hub while the very gap it closes
+ * reads "high" on the readiness page. Same function, one scale, no drift. This
+ * export is the only change Step 8 makes to this file — the arithmetic above is
+ * untouched.
  */
-const priorityBand = (score) => {
+export const priorityBand = (score) => {
   if (score >= 55) return 'high';
   if (score >= 30) return 'medium';
   return 'low';
@@ -294,5 +302,6 @@ export default {
   buildRecommendations,
   countSkillDemand,
   getRecommendationsForStudent,
+  priorityBand,
   RECOMMENDATION_LIMIT,
 };

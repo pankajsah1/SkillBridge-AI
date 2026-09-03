@@ -405,11 +405,15 @@ export default function CareerReadiness() {
               isLoading={isLoadingRecommendations}
               roleTitle={careerRole?.title}
               action={
+                /* Step 8: the card says which skills to learn, the hub says where.
+                   Repointed from /student/opportunities, which the button row at the
+                   bottom of this page still links to — nothing is lost, and the link
+                   next to the suggestions now continues the gap instead of leaving it. */
                 <Link
-                  to="/student/opportunities"
+                  to="/student/learning"
                   className="text-sm font-medium text-primary-700 hover:text-primary-800"
                 >
-                  See what employers want →
+                  Find programs for these gaps →
                 </Link>
               }
             />

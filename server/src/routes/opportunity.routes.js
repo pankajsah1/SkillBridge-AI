@@ -52,6 +52,8 @@ import {
   listForOpportunity,
 } from '../controllers/application.controller.js';
 import { validateApplicationQuery } from '../validators/application.validator.js';
+import { listMyLearningPrograms } from '../controllers/learning.controller.js';
+import { validateLearningProgramQuery } from '../validators/learning.validator.js';
 import {
   validateBrowseQuery,
   validateCreateOpportunity,
@@ -131,5 +133,22 @@ industryRoutes.get('/opportunities', validateOpportunityQuery, listMyOpportuniti
  * making it read a paginated list to work that out would be wrong past page one.
  */
 industryRoutes.get('/applications/summary', getRecruitmentTotals);
+
+/**
+ * `${API_PREFIX}/industry/learning-programs` — the publisher's own learning catalogue
+ * (Step 8), with enrolment and completion counts per programme.
+ *
+ * ON THIS ROUTER RATHER THAN A SECOND `/industry` MOUNT. An industry user manages two
+ * kinds of thing and should not have to learn two base paths for them, and mounting a
+ * second router on the same prefix would run `authenticate` and `allowRoles` twice per
+ * request — as well as breaking the "no prefix is mounted twice" invariant the analytics
+ * suite checks. This router is already the shared owner surface: the line above it imports
+ * from application.controller.js for exactly the same reason.
+ *
+ * COUNTS ONLY, NEVER LEARNERS. The service returns "14 enrolled, 3 completed" and no
+ * names, emails or individual progress — that is private student information, and the
+ * standing rule against reading it without authorisation covers industry users too.
+ */
+industryRoutes.get('/learning-programs', validateLearningProgramQuery, listMyLearningPrograms);
 
 export default { opportunityRoutes, industryRoutes };

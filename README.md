@@ -66,7 +66,8 @@ skillbridge-ai/
 │   │   │   ├── application.api.js    # apply, my applications, applicants
 │   │   │   ├── analytics.api.js      # the institution overview, one call
 │   │   │   ├── academician.api.js    # the academician profile, dashboard, matches
-│   │   │   └── portfolio.api.js      # portfolio records + document upload
+│   │   │   ├── portfolio.api.js      # portfolio records + document upload
+│   │   │   └── learning.api.js       # programmes, enrolments, recommendations
 │   │   ├── components/
 │   │   │   ├── ui/              # Button, Input, Textarea, Select, Alert,
 │   │   │   │                    # Spinner, Card, Badge, ProgressBar, EmptyState,
@@ -91,16 +92,23 @@ skillbridge-ai/
 │   │   │   │   ├── AcademicianDetailsForm.jsx    # position, expertise, interests
 │   │   │   │   └── AcademicianRecordSection.jsx  # education / experience /
 │   │   │   │                                     # achievements, driven by config
-│   │   │   └── portfolio/
-│   │   │       ├── PortfolioHeader.jsx        # name, headline, completion ring
-│   │   │       ├── PortfolioSummary.jsx       # bio, education, skills, readiness
-│   │   │       ├── PortfolioCompletionPanel.jsx # what is missing, and the fix
-│   │   │       ├── PortfolioSection.jsx       # one collapsible record section
-│   │   │       ├── RecordCard.jsx             # one project/cert/achievement/role
-│   │   │       ├── RecordForm.jsx             # add and edit, driven by config
-│   │   │       ├── ResumeCard.jsx             # the single current resume
-│   │   │       ├── DocumentControl.jsx        # attach, download, remove
-│   │   │       └── VerificationBadge.jsx      # pending / verified / rejected
+│   │   │   ├── portfolio/
+│   │   │   │   ├── PortfolioHeader.jsx        # name, headline, completion ring
+│   │   │   │   ├── PortfolioSummary.jsx       # bio, education, skills, readiness
+│   │   │   │   ├── PortfolioCompletionPanel.jsx # what is missing, and the fix
+│   │   │   │   ├── PortfolioSection.jsx       # one collapsible record section
+│   │   │   │   ├── RecordCard.jsx             # one project/cert/achievement/role
+│   │   │   │   ├── RecordForm.jsx             # add and edit, driven by config
+│   │   │   │   ├── ResumeCard.jsx             # the single current resume
+│   │   │   │   ├── DocumentControl.jsx        # attach, download, remove
+│   │   │   │   └── VerificationBadge.jsx      # pending / verified / rejected
+│   │   │   └── learning/
+│   │   │       ├── ProgramCard.jsx            # one programme, with its own badge
+│   │   │       ├── LearningFilterBar.jsx      # type, level, delivery mode, skill
+│   │   │       ├── RecommendedPrograms.jsx    # gap-driven, and says why
+│   │   │       ├── EnrollmentProgress.jsx     # the only control that moves progress
+│   │   │       ├── ReassessmentPrompt.jsx     # completion -> retake, by skill id
+│   │   │       └── LearningProgramForm.jsx    # publish and edit, one form
 │   │   ├── constants/
 │   │   │   ├── roles.js         # role labels + dashboard paths
 │   │   │   ├── skills.js        # proficiency bands, category labels
@@ -110,6 +118,8 @@ skillbridge-ai/
 │   │   │   ├── portfolio.js     # upload limits, type labels, badge styling —
 │   │   │   │                    # mirrors the server file of the same name
 │   │   │   ├── academicians.js  # designations, experience and achievement types
+│   │   │   ├── learning.js      # programme types, levels, delivery modes,
+│   │   │   │                    # enrolment statuses — mirrors the server file
 │   │   │   ├── academicianSections.js # education / experience / achievements as
 │   │   │   │                          # data: fields, validation, card shape
 │   │   │   └── portfolioSections.js # the four record sections as data: fields,
@@ -124,7 +134,13 @@ skillbridge-ai/
 │   │   │   ├── useOpportunityEditor.js # create/edit form state and submission
 │   │   │   ├── useAssessmentAttempt.js # one attempt: answers, timer, submit
 │   │   │   ├── useAcademicianProfile.js # the academician profile + every write
-│   │   │   └── usePortfolio.js        # the portfolio, and every write to it
+│   │   │   ├── usePortfolio.js        # the portfolio, and every write to it
+│   │   │   ├── useLearningPrograms.js # discovery: filters + pagination
+│   │   │   ├── useLearningProgram.js  # one programme + this learner's enrolment
+│   │   │   ├── useMyLearning.js       # My Learning: the rows and the summary
+│   │   │   ├── useLearningRecommendations.js # the gap-driven strip
+│   │   │   ├── useMyLearningPrograms.js  # the publisher's list and row actions
+│   │   │   └── useLearningProgramEditor.js # publish/edit form state + submission
 │   │   ├── pages/
 │   │   │   ├── Login.jsx  Register.jsx
 │   │   │   ├── SystemStatus.jsx      # the Step 1 status card, now at /status
@@ -145,11 +161,16 @@ skillbridge-ai/
 │   │   │   │   ├── CareerReadiness.jsx       # readiness + gaps per career goal
 │   │   │   │   ├── MatchedOpportunities.jsx  # ranked matches, with reasons
 │   │   │   │   ├── MyApplications.jsx        # every application and its history
-│   │   │   │   └── StudentPortfolio.jsx      # the portfolio page, /student/portfolio
+│   │   │   │   ├── StudentPortfolio.jsx      # the portfolio page, /student/portfolio
+│   │   │   │   ├── LearningHub.jsx           # browse + the recommendation strip
+│   │   │   │   ├── LearningProgramDetails.jsx # detail, enrol, progress, reassess
+│   │   │   │   └── MyLearning.jsx            # the three tabs and the summary
 │   │   │   ├── industry/
 │   │   │   │   ├── MyOpportunities.jsx       # the owner's management list
 │   │   │   │   ├── OpportunityFormPage.jsx   # one page for create and edit
-│   │   │   │   └── OpportunityApplicants.jsx # ranked applicants + status moves
+│   │   │   │   ├── OpportunityApplicants.jsx # ranked applicants + status moves
+│   │   │   │   ├── MyLearningPrograms.jsx    # the publisher's programme list
+│   │   │   │   └── LearningProgramFormPage.jsx # publish and edit a programme
 │   │   │   └── academician/
 │   │   │       ├── AcademicianProfile.jsx    # the academician's own profile
 │   │   │       ├── AcademicianOpportunities.jsx # collaborations and programmes
@@ -164,6 +185,7 @@ skillbridge-ai/
 │   │   │   ├── validation.js    # mirrors the backend rules for instant feedback
 │   │   │   ├── profileValidation.js      # same, for the profile form
 │   │   │   ├── opportunityValidation.js  # same, for the opportunity form
+│   │   │   ├── learningValidation.js     # same, for the programme form
 │   │   │   └── apiErrors.js     # turns a rejected request into field messages
 │   │   ├── styles/index.css     # Tailwind entry point
 │   │   ├── App.jsx
@@ -188,8 +210,10 @@ skillbridge-ai/
 │   │   │   ├── applications.js  # statuses, the legal transition map, labels
 │   │   │   ├── academicians.js  # designations, experience and achievement types,
 │   │   │   │                    # and the nine profile-completion sections
-│   │   │   └── portfolio.js     # section weights, upload limits, allowed MIME
-│   │   │                        # types, document types, verification statuses
+│   │   │   ├── portfolio.js     # section weights, upload limits, allowed MIME
+│   │   │   │                    # types, document types, verification statuses
+│   │   │   └── learning.js      # programme types, levels, delivery modes, the two
+│   │   │                        # status transition maps, progress rules, limits
 │   │   ├── controllers/         # request/response only
 │   │   │   ├── auth.controller.js
 │   │   │   ├── health.controller.js
@@ -200,12 +224,14 @@ skillbridge-ai/
 │   │   │   ├── application.controller.js
 │   │   │   ├── analytics.controller.js  # reads req.user and nothing else
 │   │   │   ├── academician.controller.js # the profile, dashboard and matches
-│   │   │   └── portfolio.controller.js  # records, uploads, downloads
+│   │   │   ├── portfolio.controller.js  # records, uploads, downloads
+│   │   │   └── learning.controller.js   # programmes, enrolments, recommendations
 │   │   ├── data/
 │   │   │   ├── skills.seed.js       # the seed catalogue, as plain data
 │   │   │   ├── careerRoles.seed.js
 │   │   │   ├── questionBank.seed.js # the offline fallback question bank
-│   │   │   └── demo.seed.js         # the demo cohort, postings and pipeline
+│   │   │   └── demo.seed.js         # the demo cohort, postings, pipeline and
+│   │   │                            # the learning programmes they enrol in
 │   │   ├── middleware/
 │   │   │   ├── authMiddleware.js    # verifies the JWT, loads the user
 │   │   │   ├── roleMiddleware.js    # allowRoles(...)
@@ -218,7 +244,9 @@ skillbridge-ai/
 │   │   │   ├── Opportunity.js       # one per posting, refs User + Skill
 │   │   │   ├── Assessment.js        # one attempt, with its questions
 │   │   │   ├── AcademicianProfile.js # one per academician, refs User + Skill
-│   │   │   └── Application.js       # one per applicant per posting, unique
+│   │   │   ├── Application.js       # one per applicant per posting, unique
+│   │   │   ├── LearningProgram.js   # one per programme, refs User + Skill
+│   │   │   └── LearningEnrollment.js # one per learner per programme, unique
 │   │   ├── routes/
 │   │   │   ├── index.js         # mounts everything under /api/v1
 │   │   │   ├── auth.routes.js
@@ -229,7 +257,8 @@ skillbridge-ai/
 │   │   │   ├── assessment.routes.js  # /assessments
 │   │   │   ├── application.routes.js # /applications
 │   │   │   ├── academician.routes.js # /academicians/profile and below
-│   │   │   └── analytics.routes.js   # /analytics/institution
+│   │   │   ├── analytics.routes.js   # /analytics/institution
+│   │   │   └── learning.routes.js    # /learning and /industry/learning-programs
 │   │   ├── services/            # business logic
 │   │   │   ├── auth.service.js
 │   │   │   ├── catalogue.service.js
@@ -244,6 +273,10 @@ skillbridge-ai/
 │   │   │   ├── academician.service.js   # the profile, its records, its matches
 │   │   │   ├── portfolio.service.js     # every query filters on the caller
 │   │   │   ├── document.service.js      # reads the raw stream, no upload library
+│   │   │   ├── learning.service.js      # programmes: publish, edit, discovery
+│   │   │   ├── learningEnrollment.service.js # enrol, progress, complete — and it
+│   │   │   │                                 # never writes a skill score
+│   │   │   ├── learningRecommendation.service.js # programmes for the real gaps
 │   │   │   └── ai/
 │   │   │       ├── aiProvider.js        # one HTTP call, provider-agnostic
 │   │   │       └── assessmentAi.js      # question TEXT only — never a score
@@ -259,13 +292,15 @@ skillbridge-ai/
 │   │   │   ├── assessment.validator.js
 │   │   │   ├── application.validator.js
 │   │   │   ├── academician.validator.js # the profile and its three record types
-│   │   │   └── portfolio.validator.js  # the four sections + upload headers
+│   │   │   ├── portfolio.validator.js  # the four sections + upload headers
+│   │   │   └── learning.validator.js   # programmes, enrolments, progress
 │   │   ├── app.js               # builds the Express app
 │   │   └── server.js            # starts it
 │   ├── scripts/
 │   │   ├── checkDbConnection.js
 │   │   ├── seed.js              # seeds the skill + career-role catalogue
-│   │   └── seedDemo.js          # seeds the demo cohort, postings, pipeline
+│   │   └── seedDemo.js          # seeds the demo cohort, postings, pipeline,
+│   │                            # learning programmes and enrolments
 │   ├── uploads/                 # created on first upload; gitignored, never
 │   │   │                        # served statically — see "Student portfolio"
 │   └── package.json
@@ -396,7 +431,7 @@ show client, API and database all connected.
 | `server` | `npm start` | Start once, no watcher |
 | `server` | `npm run db:check` | Test MongoDB connectivity in isolation |
 | `server` | `npm run seed` | Load the skill and career-role catalogue |
-| `server` | `npm run seed:demo` | Load the demo cohort, postings and applications |
+| `server` | `npm run seed:demo` | Load the demo cohort, postings, applications and learning |
 | `client` | `npm run dev` | Vite dev server |
 | `client` | `npm run build` | Production build into `dist/` |
 | `client` | `npm run preview` | Serve the production build locally |
@@ -1638,20 +1673,173 @@ asks for.
 
 ---
 
+## Learning and skill development
+
+The point of this half is not a course catalogue. It is the loop:
+
+```text
+assessment -> skill profile -> gap -> recommended program -> enrollment ->
+progress -> completion -> REASSESSMENT -> measured improvement -> better matches
+```
+
+Every arrow in that chain already existed except the middle four, and the last one
+is the reason the feature is shaped the way it is: **finishing a program does not
+raise a skill score.** Completion is evidence that learning happened; the number in
+a student's profile still moves only when a real assessment is submitted, which is
+why `learningEnrollment.service.js` imports no profile model and no assessment
+service, and why the completion response carries `nextAction: 'reassess'` rather
+than a new level. A demo that granted points on completion would prove nothing —
+the improvement has to be measured to be real.
+
+`LearningProgram` covers the things a person *studies*: `COURSE`,
+`CERTIFICATION`, `WORKSHOP`, `TRAINING` and `MENTORSHIP`. `Opportunity` still
+covers the things a person *applies to*. They are separate models because a
+programme has a syllabus, a level and a delivery mode, while a posting has a
+deadline, openings and a pipeline — and because merging them would mean one status
+graph serving two vocabularies.
+
+Both models point at the **same** `Skill` catalogue the assessments and the gap
+analysis use. That is what makes a recommendation possible at all: a programme can
+only be offered against a gap when the gap and the syllabus are measured in the
+same units.
+
+### Endpoints
+
+| Method | Route | Auth | Purpose |
+| --- | --- | --- | --- |
+| `GET` | `/api/v1/learning/programs` | any signed-in | Browse published programmes — search, `type`, `level`, `deliveryMode`, `skillId`, pagination |
+| `POST` | `/api/v1/learning/programs` | `INDUSTRY` | Publish one. The publisher comes from the token, never the body |
+| `GET` | `/api/v1/learning/programs/:id` | any signed-in | One programme, with the caller's own enrolment attached if they have one |
+| `PATCH` | `/api/v1/learning/programs/:id` | `INDUSTRY` | Edit any subset of the editable fields, including `status` |
+| `DELETE` | `/api/v1/learning/programs/:id` | `INDUSTRY` | Remove one — only your own, and only while nobody is enrolled |
+| `GET` | `/api/v1/learning/recommendations` | `STUDENT` | Programmes for this student's real gaps, each with its reasons |
+| `GET` | `/api/v1/learning/enrollments` | `STUDENT` `ACADEMICIAN` | My Learning: this learner's rows plus the summary counts |
+| `POST` | `/api/v1/learning/enrollments` | `STUDENT` `ACADEMICIAN` | Enrol in one programme |
+| `GET` | `/api/v1/learning/enrollments/summary` | `STUDENT` `ACADEMICIAN` | The four dashboard numbers without a page of rows |
+| `GET` | `/api/v1/learning/enrollments/:id` | `STUDENT` `ACADEMICIAN` | One of your own enrolments |
+| `PATCH` | `/api/v1/learning/enrollments/:id` | `STUDENT` `ACADEMICIAN` | `{ progress }`, `{ status }`, or both |
+| `GET` | `/api/v1/industry/learning-programs` | `INDUSTRY` | The publisher's own catalogue, drafts included, with counts |
+
+`/enrollments/summary` is registered **before** `/enrollments/:id`, and that order
+is load-bearing: Express matches in registration order, so the reverse would send
+the dashboard card into the detail handler and `validateObjectIdParam` would reject
+"summary" as a malformed id.
+
+The publisher's management list is mounted on the existing `/industry` router next
+to `/industry/opportunities`, not on a second `/industry` router exported from the
+learning file. Two routers on one prefix would authenticate every request twice.
+
+### Nothing accepts an identity
+
+No route above takes a `studentId`, a `learnerId` or a `publisherId`. Every
+learner-scoped query filters on `req.user.id` — `findOne({ _id: id, learnerId })`
+rather than a load-then-compare — so "student B updates student A's enrollment" is
+not a check that could be forgotten but a request that cannot be expressed. The
+validator also rejects those field names by name, so a client that sends one gets a
+400 instead of silent acceptance.
+
+Another learner's enrolment is a **404**, while another organisation's published
+programme is a **403**. The split is deliberate: a published programme's existence
+is public, so hiding it would be theatre, whereas confirming that enrolment `abc`
+exists is itself private information about a student.
+
+### Progress has four rules, and the order matters
+
+`ENROLLED → IN_PROGRESS → COMPLETED`, with forward skipping allowed and nothing
+else. `PATCH /enrollments/:id` applies these in order:
+
+A request asking for exactly what is already stored is a **no-op, not an error** —
+which is what makes a double-tapped button and a re-run of the demo seed both safe.
+Completion is **terminal**, because evidence that can be withdrawn is not evidence.
+Progress **never decreases**; a slider that jumped backwards is a client bug. And
+only the transitions in `ENROLLMENT_STATUS_TRANSITIONS` are legal, so the refusal
+message is generated from that table rather than from a hardcoded list.
+
+Progress then drives the status forward but never back: `{ progress: 100 }` also
+completes the row, `{ status: 'completed' }` also fills the bar to 100, and
+`{ progress: 100, status: 'in_progress' }` from a confused client resolves to
+completed rather than storing a full bar that claims to be unfinished. The model's
+`coherentProgress` and `coherentTimestamps` hooks refuse the incoherent pairs
+outright, so a row cannot be written wrong from any direction. `startedAt` is
+stamped once, the first time an enrolment leaves `enrolled`; `completedAt` once, on
+completion — it is the date the reassessment prompt quotes back.
+
+A duplicate enrolment is stopped **twice**: a service-level lookup so a learner who
+clicks twice gets a sentence, and a unique index on `{ learnerId, programId }`
+because two requests 40ms apart can both pass a service check and cannot both pass
+an index. `errorMiddleware` already maps E11000 to 409, so the racing request gets
+the same status as the polite one.
+
+### Recommendations are computed, and they say why
+
+`learningRecommendation.service.js` reuses the existing readiness engine — the same
+`skillGapForStudent` the `/students/readiness` page uses. It does not re-derive a
+gap and it does not contain a single student id. A programme scores against the
+learner's **worst** gap, so the course that closes the biggest hole ranks first, and
+each card carries the reasons the score was built from:
+
+```text
+AWS, Docker and Linux are current skill gaps
+Your target role, Cloud Engineer, requires AWS, Docker and Linux
+This program covers AWS, Docker and Linux
+Your current proficiency in AWS is 20, below the Cloud Engineer requirement of 70
+4 open opportunities ask for AWS
+```
+
+Those sentences are generated from the same numbers the strip sorted on, so a card
+cannot claim a reason the score did not use. The numeric bullet quotes the
+**driving** skill — the worst gap this programme covers, the one that set its score —
+and the demand bullet appears only when postings actually ask for it, because "asked
+for by 0 opportunities" is worse than silence. A student with no profile, no career
+goal or no gaps gets an explanation of what to do next rather than an empty list or
+an error.
+
+### The publisher surface reuses the industry role
+
+Publishing is `ROLES.INDUSTRY`. There is no new role, no new permission table and
+no new dashboard — `/industry/learning-programs` is a list beside the existing
+postings list, and the same three-status vocabulary applies: `draft → published →
+archived`, with republishing refused once the end date has passed. A programme
+cannot be deleted while learners are enrolled in it, because deleting it would
+delete their history.
+
+`published → draft` is deliberately **not** a legal move. Once people can enrol,
+un-publishing under them is not an edit, it is a withdrawal — archive it instead.
+
+### The student flow in the browser
+
+`/student/learning` is the hub: the recommendation strip on top with its reasons,
+then the searchable catalogue. `/student/learning/:programId` is the detail page,
+where an "Enrol" button becomes a progress control once you are on the programme, and
+where finishing it replaces the control with the reassessment prompt — one button per
+skill the programme taught, linking straight into the existing assessment flow by
+skill id. `/student/my-learning` is the three tabs and the summary counts, with a
+"continue where you left off" prompt resolved by the database rather than by taking
+the first row of page one. The student dashboard gained one "Your skill development"
+card reading the same summary endpoint; nothing else on it moved.
+
+Academicians enrol through the same routes and the same pages. `learnerRole` is
+snapshotted on the row at enrolment time, so a mixed cohort stays legible.
+
+---
+
 ## Demo data
 
+
 `npm run seed` loads the catalogue. `npm run seed:demo` loads a **story**: 22
-students, 3 employers, one academician, 18 postings, 34 applications and 16
-portfolio records, all reachable through the UI with one password.
+students, 3 employers, one academician, 18 postings, 34 applications, 16
+portfolio records, 8 learning programmes and 18 enrolments, all reachable through
+the UI with one password.
 
 ```bash
 cd server
 npm run seed        # first — the catalogue the demo data points at
-npm run seed:demo   # then — the cohort, postings and pipeline
+npm run seed:demo   # then — the cohort, postings, pipeline and learning
 ```
 
 Both are idempotent and neither ever deletes: users are matched on email,
-profiles on user, postings on owner-plus-title, applications on the unique index.
+profiles on user, postings on owner-plus-title, applications on the unique index,
+programmes on publisher-plus-title, enrolments on `{ learnerId, programId }`.
 Re-running updates in place and reports what it found. There is no `--force` and
 no `dropDatabase`, because these run against whatever `MONGODB_URI` names.
 
@@ -1714,6 +1902,28 @@ collaboration, a consultancy, a guest lecture series and a mentorship programme 
 the collaboration side; a Faculty Development Programme in Generative AI and an
 Industrial Training Programme in cloud infrastructure on the programme side — so the
 dashboard's two counts are different numbers rather than one number twice.
+
+**The learning half closes the loop without shortening it.** Eight programmes across
+the three employers, seven published and one left in draft — AWS Cloud Fundamentals,
+Full Stack React & Node Development, Advanced SQL & Database Engineering, Python for
+Data Analytics, an Industry Project & Agile Development workshop, an AI/ML Industry
+Readiness training programme, a DevOps mentorship, and System Design for Production
+Services still unpublished so the draft rules can be seen working. Between them they
+cover every one of the five programme types, and they teach exactly the skills the
+postings ask for and the cohort lacks, so the recommendation strip has real gaps to
+answer. Eighteen enrolments spread across enrolled, in progress and completed; three
+of them are complete, which is what gives the reassessment prompt something to point
+at. One is the academician's, so `learnerRole` is exercised rather than assumed.
+Persona E is left with no learning history on purpose, because the empty state has to
+be reachable too.
+
+Programme dates are stated as **month offsets** rather than fixed dates, so the demo
+never ages into a catalogue of expired courses — which matters more than it sounds,
+since an expired programme cannot be enrolled in and the seed would then fail on its
+own second run. Programmes go in through `createLearningProgram` and enrolments
+through `enroll` and `updateEnrollment`, so every row in the demo database is one
+the product itself could have produced. **Not one skill score moved because a
+programme was completed**, and the seed prints that line at the end as a reminder.
 
 ### Portfolios are on a minority of the cohort, on purpose
 
@@ -1825,19 +2035,23 @@ the flows in the PRD and TRD are used instead.
 ~~Opportunities~~ → ~~Assessment engine~~ → ~~Career readiness & gap analysis~~ →
 ~~Learning recommendations~~ → ~~Matching~~ → ~~Applications~~ →
 ~~Candidate ranking~~ → ~~Institution analytics~~ → ~~Demo data~~ →
-~~Portfolio & documents~~ → ~~Academician portal~~ → Notifications.
+~~Portfolio & documents~~ → ~~Academician portal~~ →
+~~Learning & skill development~~ → Notifications.
 
 Each step ships one complete, working flow before the next begins.
 
 Every flow above is live end to end. A student can register, build a profile, sit
-an assessment, see their readiness and what to study, browse ranked matches with
-the reasoning behind each score, apply, watch the status history as an employer
-moves them along, and assemble a portfolio with the documents behind it. An
-employer can post, see ranked applicants with the match score frozen at apply
-time, and move them through the pipeline. An institution can see cohort readiness,
-the skill gaps against live hiring, and the placement pipeline. An academician can
-build a faculty profile, browse collaborations and faculty programmes, see which
-ones their expertise fits and why, and apply.
+an assessment, see their readiness and what to study, enrol in a programme that
+closes one of those gaps, track it to completion, retake the assessment to prove the
+improvement, browse ranked matches with the reasoning behind each score, apply,
+watch the status history as an employer moves them along, and assemble a portfolio
+with the documents behind it. An employer can post, see ranked applicants with the
+match score frozen at apply time, move them through the pipeline, and publish the
+training that closes the gaps their own postings expose. An institution can see
+cohort readiness, the skill gaps against live hiring, and the placement pipeline. An
+academician can build a faculty profile, browse collaborations and faculty
+programmes, see which ones their expertise fits and why, apply, and enrol in
+learning of their own.
 
 Only the `ADMIN` dashboard still renders a placeholder. It exists to prove routing
 and role enforcement work, and it is honest about it — it lists what it will

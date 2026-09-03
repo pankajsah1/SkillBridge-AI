@@ -22,6 +22,7 @@ import { Link } from 'react-router-dom';
 
 import { fetchApplicationSummary } from '../../api/application.api.js';
 import { fetchLatestAssessment } from '../../api/assessment.api.js';
+import { fetchLearningSummary } from '../../api/learning.api.js';
 import { fetchMyReadiness } from '../../api/studentProfile.api.js';
 import useStudentProfile from '../../hooks/useStudentProfile.js';
 import DashboardLayout from '../../components/layout/DashboardLayout.jsx';
@@ -92,6 +93,18 @@ export default function StudentDashboard() {
   const [applicationSummary, setApplicationSummary] = useState(null);
   const [isLoadingApplications, setIsLoadingApplications] = useState(true);
 
+  /**
+   * Learning enrolment counts, for the "Your skill development" card.
+   *
+   * The same exception the applications card earns, for the same reason: "1 program
+   * in progress" is what brings a student back, and the endpoint returns counts plus
+   * the one programme to resume — not a page of rows this card would not render.
+   *
+   * Silent on failure, like the three above.
+   */
+  const [learningSummary, setLearningSummary] = useState(null);
+  const [isLoadingLearning, setIsLoadingLearning] = useState(true);
+
   useEffect(() => {
     let isActive = true;
 
@@ -151,12 +164,33 @@ export default function StudentDashboard() {
     };
   }, []);
 
+  useEffect(() => {
+    let isActive = true;
+
+    (async () => {
+      try {
+        const summary = await fetchLearningSummary();
+        if (isActive) setLearningSummary(summary);
+      } catch {
+        if (isActive) setLearningSummary(null);
+      } finally {
+        if (isActive) setIsLoadingLearning(false);
+      }
+    })();
+
+    return () => {
+      isActive = false;
+    };
+  }, []);
+
   const completion = profile?.profileCompletion ?? 0;
   const skillCount = profile?.skills?.length ?? 0;
   const goalCount = profile?.targetRoles?.length ?? 0;
 
   const applicationTotal = applicationSummary?.total ?? 0;
   const byStatus = applicationSummary?.byStatus ?? {};
+
+  const learningTotal = learningSummary?.total ?? 0;
 
   /**
    * The statuses worth a chip: the ones that mean someone at a company has acted.
@@ -418,6 +452,74 @@ export default function StudentDashboard() {
             <p className="text-sm text-slate-600">
               Set a career goal and readiness compares your skills against the levels that role
               expects, so you can see what is missing rather than guessing.
+            </p>
+          )}
+        </Card>
+
+        {/* Learning sits between readiness and opportunities because that is where it
+            sits in the loop: readiness names the gaps, a program closes one, and the
+            reassessment is what turns that into a better match below. Deliberately one
+            card, not a redesign of this page. */}
+        <Card
+          title="Your skill development"
+          description={
+            learningTotal > 0
+              ? 'The programs you are learning from, and what is left to finish.'
+              : 'Courses and certifications chosen from the gaps between your skills and your target role.'
+          }
+          action={
+            <Link
+              to={learningTotal > 0 ? '/student/my-learning' : '/student/learning'}
+              className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary-600 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-primary-700"
+            >
+              {learningTotal > 0 ? 'My learning' : 'Find a program'}
+            </Link>
+          }
+        >
+          {isLoadingLearning ? (
+            <div className="flex items-center gap-2.5 py-1 text-sm text-slate-500">
+              <Spinner size="sm" />
+              Checking what you are learning…
+            </div>
+          ) : learningTotal > 0 ? (
+            <div className="space-y-3">
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge variant="primary">
+                  {learningSummary.active} in progress
+                </Badge>
+                <Badge variant={learningSummary.completed > 0 ? 'success' : 'outline'}>
+                  {learningSummary.completed} completed
+                </Badge>
+              </div>
+
+              {/* The server picks which one to resume — the most recently touched
+                  unfinished enrolment, not the newest. */}
+              {learningSummary.continueWith?.program ? (
+                <p className="text-sm text-slate-600">
+                  Pick up{' '}
+                  <span className="font-medium text-slate-900">
+                    {learningSummary.continueWith.program.title}
+                  </span>{' '}
+                  at {learningSummary.continueWith.progress}%.{' '}
+                  <Link
+                    to={`/student/learning/${learningSummary.continueWith.programId}`}
+                    className="font-medium text-primary-700 hover:text-primary-800"
+                  >
+                    Continue →
+                  </Link>
+                </p>
+              ) : (
+                <p className="text-sm text-slate-600">
+                  Finishing a program records the learning. Your skill levels change when you
+                  reassess, so a completion is the cue to take the assessment again.
+                </p>
+              )}
+            </div>
+          ) : (
+            <p className="text-sm text-slate-600">
+              Programs are recommended from your measured skill gaps, and each one says which gap
+              it closes. Completing one is evidence that you did the learning — reassessing is what
+              updates your skill levels and, with them, your matches.
             </p>
           )}
         </Card>
