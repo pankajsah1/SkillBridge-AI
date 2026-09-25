@@ -12,8 +12,10 @@ import analyticsRoutes from './analytics.routes.js';
 import applicationRoutes from './application.routes.js';
 import assessmentRoutes from './assessment.routes.js';
 import authRoutes from './auth.routes.js';
+import coachRoutes from './coach.routes.js';
 import healthRoutes from './health.routes.js';
 import learningRoutes from './learning.routes.js';
+import notificationRoutes from './notification.routes.js';
 import studentRoutes from './student.routes.js';
 import { careerRoleRoutes, skillRoutes } from './catalogue.routes.js';
 import { industryRoutes, opportunityRoutes } from './opportunity.routes.js';
@@ -34,6 +36,8 @@ const mounts = [
   ['/assessments', assessmentRoutes],
   ['/applications', applicationRoutes],
   ['/analytics', analyticsRoutes],
+  ['/coach', coachRoutes],
+  ['/notifications', notificationRoutes],
 ];
 
 for (const [mountPath, subRouter] of mounts) {

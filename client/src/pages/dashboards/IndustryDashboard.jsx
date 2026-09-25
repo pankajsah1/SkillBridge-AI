@@ -39,6 +39,7 @@ import { fetchRecruitmentSummary } from '../../api/application.api.js';
 import { fetchMyLearningPrograms } from '../../api/learning.api.js';
 import DashboardLayout from '../../components/layout/DashboardLayout.jsx';
 import DashboardPlaceholder from '../../components/dashboard/DashboardPlaceholder.jsx';
+import ActionCenter from '../../components/coach/ActionCenter.jsx';
 import Alert from '../../components/ui/Alert.jsx';
 import Card from '../../components/ui/Card.jsx';
 import { Spinner } from '../../components/ui/Spinner.jsx';
@@ -174,6 +175,10 @@ export default function IndustryDashboard() {
             message={`${loadError.message} Your account details are unaffected.`}
           />
         ) : null}
+
+        {/* Step 10: Hiring Actions lead the page — applications to review and
+            postings to attend to, grounded in the recruiter's own data. */}
+        <ActionCenter />
 
         <Card
           title="Your opportunities"

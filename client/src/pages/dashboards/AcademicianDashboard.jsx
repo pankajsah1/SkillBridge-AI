@@ -43,6 +43,7 @@ import {
 import { completionMessage } from '../../constants/academicians.js';
 import DashboardLayout from '../../components/layout/DashboardLayout.jsx';
 import OpportunityCard from '../../components/opportunities/OpportunityCard.jsx';
+import ActionCenter from '../../components/coach/ActionCenter.jsx';
 import PortfolioCompletionPanel from '../../components/portfolio/PortfolioCompletionPanel.jsx';
 import { MatchScoreChip } from '../../components/student/MatchBreakdown.jsx';
 import Alert from '../../components/ui/Alert.jsx';
@@ -192,6 +193,10 @@ export default function AcademicianDashboard() {
             </div>
           </Alert>
         ) : null}
+
+        {/* Step 10: Academic Actions lead the page — the same grounded next-steps
+            surface every role gets, sourced from this academician's own state. */}
+        <ActionCenter />
 
         {isLoading ? (
           <Card>

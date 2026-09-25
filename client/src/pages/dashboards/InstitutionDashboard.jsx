@@ -30,6 +30,7 @@ import { Link } from 'react-router-dom';
 import { fetchInstitutionAnalytics } from '../../api/analytics.api.js';
 import DashboardLayout from '../../components/layout/DashboardLayout.jsx';
 import DashboardPlaceholder from '../../components/dashboard/DashboardPlaceholder.jsx';
+import ActionCenter from '../../components/coach/ActionCenter.jsx';
 import {
   BranchChart,
   ReadinessChart,
@@ -128,6 +129,10 @@ export default function InstitutionDashboard() {
             errors={errorDetailsForBanner(loadError)}
           />
         ) : null}
+
+        {/* Step 10: Priority Actions lead the page — the CRITICAL/HIGH interventions
+            the intelligence layer already computed, surfaced as next steps. */}
+        <ActionCenter />
 
         {isLoading ? (
           <Card title="Cohort readiness">

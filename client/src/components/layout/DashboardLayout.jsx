@@ -12,6 +12,7 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { ROLE_LABELS } from '../../constants/roles.js';
 import Button from '../ui/Button.jsx';
+import NotificationBell from '../notifications/NotificationBell.jsx';
 
 const APP_NAME = import.meta.env.VITE_APP_NAME || 'SkillBridge AI';
 
@@ -42,6 +43,7 @@ export default function DashboardLayout({ title, subtitle, children }) {
           </Link>
 
           <div className="flex shrink-0 items-center gap-3">
+            <NotificationBell />
             <div className="hidden text-right sm:block">
               <p className="truncate text-sm font-medium text-slate-900">{user?.name}</p>
               <p className="text-xs text-slate-500">

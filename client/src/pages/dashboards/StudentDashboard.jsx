@@ -27,6 +27,8 @@ import { fetchMyReadiness } from '../../api/studentProfile.api.js';
 import useStudentProfile from '../../hooks/useStudentProfile.js';
 import DashboardLayout from '../../components/layout/DashboardLayout.jsx';
 import DashboardPlaceholder from '../../components/dashboard/DashboardPlaceholder.jsx';
+import ActionCenter from '../../components/coach/ActionCenter.jsx';
+import CoachPanel from '../../components/coach/CoachPanel.jsx';
 import Alert from '../../components/ui/Alert.jsx';
 import Badge from '../../components/ui/Badge.jsx';
 import Card from '../../components/ui/Card.jsx';
@@ -216,6 +218,11 @@ export default function StudentDashboard() {
             message={`${loadError.message} Your account details below are unaffected.`}
           />
         ) : null}
+
+        {/* Step 10: the Action Center leads the page — the most useful next steps,
+            grounded in the same data every card below shows, so the student sees
+            what to do before scrolling the detail. */}
+        <ActionCenter />
 
         <Card
           title="Your profile"
@@ -455,6 +462,11 @@ export default function StudentDashboard() {
             </p>
           )}
         </Card>
+
+        {/* Step 10: the grounded AI Coach sits right after readiness, because it
+            explains the number the card above just showed — why it is what it is,
+            what to learn first, and the honest note that only reassessment moves it. */}
+        <CoachPanel />
 
         {/* Learning sits between readiness and opportunities because that is where it
             sits in the loop: readiness names the gaps, a program closes one, and the
